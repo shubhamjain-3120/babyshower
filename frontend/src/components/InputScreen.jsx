@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import useSpeechRecognition from "../hooks/useSpeechRecognition";
+import { createDevLogger } from "../utils/devLogger";
+import { trackPageView, trackClick } from "../utils/analytics";
+import { getRateLimitState, formatResetTime, getMaxGenerations } from "../utils/rateLimit";
+
+const logger = createDevLogger("InputScreen");
 
 /**
  * Phase 6: Single Photo Mode
@@ -13,6 +18,40 @@ import useSpeechRecognition from "../hooks/useSpeechRecognition";
 
 // LocalStorage key for caching form data
 const CACHE_KEY = "wedding-invite-form-cache";
+
+// Secret venue name that enables dev mode
+const DEV_MODE_VENUE = "Hotel Jain Ji Shubham";
+
+// Character limits for input fields
+const CHAR_LIMITS = {
+  name: 50,
+  venue: 150,
+};
+
+// Sanitize user input to prevent XSS and injection attacks
+const sanitizeInput = (input) => {
+  if (!input) return "";
+  return input
+    .replace(/[<>]/g, "") // Remove angle brackets (XSS prevention)
+    .replace(/javascript:/gi, "") // Remove javascript: protocol
+    .replace(/on\w+=/gi, "") // Remove event handlers like onclick=
+    .trim();
+};
+
+// Validate file before upload
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+const validateFile = (file) => {
+  if (!file) return { valid: false, error: "No file selected" };
+  if (file.size > MAX_FILE_SIZE) {
+    return { valid: false, error: "File too large. Maximum size is 10MB." };
+  }
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return { valid: false, error: "Invalid file type. Please upload a JPEG, PNG, WebP, or GIF image." };
+  }
+  return { valid: true };
+};
 
 // Format date for invite display
 function formatDateForInvite(isoDate) {
@@ -45,6 +84,16 @@ function saveCachedFormData(data) {
 }
 
 export default function InputScreen({ onGenerate, error }) {
+  // Rate limit state
+  const [rateLimit, setRateLimit] = useState(() => getRateLimitState());
+  
+  // Track page view on mount and check rate limit
+  useEffect(() => {
+    trackPageView('input');
+    // Refresh rate limit state on mount (in case time passed)
+    setRateLimit(getRateLimitState());
+  }, []);
+
   // Load cached data on initial render
   const cachedData = useMemo(() => loadCachedFormData(), []);
 
@@ -62,6 +111,50 @@ export default function InputScreen({ onGenerate, error }) {
   // Photo state - single photo (couple photo)
   const [photo, setPhoto] = useState(null);
 
+  // Dev mode - enabled automatically when venue matches secret phrase
+  const devMode = useMemo(() => {
+    return venue.trim().toLowerCase() === DEV_MODE_VENUE.toLowerCase();
+  }, [venue]);
+
+  const [devPhotoLoading, setDevPhotoLoading] = useState(false);
+
+  // Dev mode toggles - control which steps to skip
+  const [skipExtraction, setSkipExtraction] = useState(false);
+  const [skipImageGeneration, setSkipImageGeneration] = useState(false);
+  const [skipBackgroundRemoval, setSkipBackgroundRemoval] = useState(false);
+  const [skipVideoGeneration, setSkipVideoGeneration] = useState(false);
+
+  // Auto-load dev character file into photo when dev mode is enabled (only if no photo yet)
+  useEffect(() => {
+    if (devMode && !photo) {
+      setDevPhotoLoading(true);
+      fetch("/assets/dev-character.png")
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load dev character file");
+          return res.blob();
+        })
+        .then((blob) => {
+          // Use the blob's actual type (detected from content) instead of hardcoding
+          // This fixes issues where file extension doesn't match actual content type
+          const actualType = blob.type || "image/png";
+          const extension = actualType.split("/")[1] || "png";
+          const file = new File([blob], `dev-character.${extension}`, { type: actualType });
+          setPhoto(file);
+          logger.log("Auto-loaded dev character into photo", {
+            size: `${(file.size / 1024).toFixed(1)} KB`,
+            detectedType: actualType,
+          });
+        })
+        .catch((err) => {
+          logger.error("Failed to auto-load dev character file", err.message);
+          console.error("Failed to load dev character file:", err);
+        })
+        .finally(() => {
+          setDevPhotoLoading(false);
+        });
+    }
+  }, [devMode]);
+
   const fileInputRef = useRef(null);
 
   // Voice input
@@ -73,6 +166,7 @@ export default function InputScreen({ onGenerate, error }) {
     if (isListening && activeField === fieldId) {
       stopListening();
     } else {
+      trackClick('voice_input_start', { field_name: fieldId });
       startListening(fieldId, setter);
     }
   };
@@ -93,13 +187,23 @@ export default function InputScreen({ onGenerate, error }) {
     };
   }, [photoUrl]);
 
-  // Handle file selection
+  // Handle file selection with validation
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    const file = files[0];
+    
+    // Validate file size and type
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      alert(validation.error);
+      e.target.value = "";
+      return;
+    }
+
     // Take only the first photo
-    setPhoto(files[0]);
+    setPhoto(file);
 
     // Clear the input so the same file can be selected again
     e.target.value = "";
@@ -107,6 +211,7 @@ export default function InputScreen({ onGenerate, error }) {
 
   // Clear photo
   const handleClearPhoto = () => {
+    trackClick('photo_change');
     setPhoto(null);
   };
 
@@ -114,24 +219,64 @@ export default function InputScreen({ onGenerate, error }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    logger.log("Form submission started", {
+      devMode,
+      hasPhoto: !!photo,
+    });
+
+    // Check rate limit (refresh state first)
+    const currentLimit = getRateLimitState();
+    setRateLimit(currentLimit);
+    
+    if (!currentLimit.canGenerate && !devMode) {
+      logger.warn("Rate limit", "Generation limit reached");
+      alert(`You've reached the limit of ${getMaxGenerations()} invites per week. Please try again in ${formatResetTime(currentLimit.resetAt)}.`);
+      return;
+    }
+
     if (!brideName.trim() || !groomName.trim() || !weddingDate || !venue.trim()) {
+      logger.warn("Form validation", "Missing required fields");
       alert("Please fill all fields");
       return;
     }
 
+    // Photo is required in both normal and dev mode
     if (!photo) {
+      logger.warn("Form validation", "Photo required");
       alert("Please upload a couple photo");
       return;
     }
 
+    // Sanitize all user inputs before submission
     const formData = {
-      brideName: brideName.trim(),
-      groomName: groomName.trim(),
+      brideName: sanitizeInput(brideName),
+      groomName: sanitizeInput(groomName),
       date: formatDateForInvite(weddingDate),
-      venue: venue.trim(),
-      photo,
+      venue: sanitizeInput(venue),
+      photo, // Single couple photo
+      devMode, // Whether to skip API
+      characterFile: devMode ? photo : null, // In dev mode, use photo as character file
+      // Dev mode toggles
+      skipExtraction: devMode ? skipExtraction : false,
+      skipImageGeneration: devMode ? skipImageGeneration : false,
+      skipBackgroundRemoval: devMode ? skipBackgroundRemoval : false,
+      skipVideoGeneration: devMode ? skipVideoGeneration : false,
     };
 
+    logger.log("Form validation passed, calling onGenerate", {
+      brideName: formData.brideName,
+      groomName: formData.groomName,
+      date: formData.date,
+      venue: formData.venue,
+      devMode: formData.devMode,
+      skipExtraction: formData.skipExtraction,
+      skipImageGeneration: formData.skipImageGeneration,
+      skipBackgroundRemoval: formData.skipBackgroundRemoval,
+      skipVideoGeneration: formData.skipVideoGeneration,
+      photoSize: photo ? `${(photo.size / 1024).toFixed(1)} KB` : null,
+    });
+
+    trackClick('generate_submit', { dev_mode: devMode });
     onGenerate(formData);
   };
 
@@ -143,11 +288,16 @@ export default function InputScreen({ onGenerate, error }) {
           <button
             type="button"
             className="upload-btn upload-btn-large"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              trackClick('photo_upload_click');
+              fileInputRef.current?.click();
+            }}
           >
             <span className="upload-icon">+</span>
             <span className="upload-text">Upload Photo</span>
+            <span className="upload-text-hindi">फ़ोटो अपलोड करें</span>
             <span className="upload-hint">Select a couple photo with both groom and bride</span>
+            <span className="upload-hint-hindi">दूल्हा-दुल्हन की फ़ोटो चुनें</span>
           </button>
         </div>
       );
@@ -175,11 +325,6 @@ export default function InputScreen({ onGenerate, error }) {
 
   return (
     <div className="input-screen">
-      <header className="header">
-        <h1>Wedding Invite</h1>
-        <p>Create your Marwadi wedding invitation</p>
-      </header>
-
       {error && <div className="error-banner">{error}</div>}
 
       <form onSubmit={handleSubmit} className="form">
@@ -195,6 +340,9 @@ export default function InputScreen({ onGenerate, error }) {
                 onChange={(e) => setGroomName(e.target.value)}
                 placeholder="Enter groom's name"
                 autoComplete="off"
+                autoCapitalize="words"
+                inputMode="text"
+                maxLength={CHAR_LIMITS.name}
                 required
               />
               {isSupported && (
@@ -211,6 +359,11 @@ export default function InputScreen({ onGenerate, error }) {
                 </button>
               )}
             </div>
+            {groomName.length >= CHAR_LIMITS.name && (
+              <span className="field-error">
+                Name is too long / नाम की लंबाई कम कीजिए
+              </span>
+            )}
           </div>
 
           <div className="form-group">
@@ -223,6 +376,9 @@ export default function InputScreen({ onGenerate, error }) {
                 onChange={(e) => setBrideName(e.target.value)}
                 placeholder="Enter bride's name"
                 autoComplete="off"
+                autoCapitalize="words"
+                inputMode="text"
+                maxLength={CHAR_LIMITS.name}
                 required
               />
               {isSupported && (
@@ -239,6 +395,11 @@ export default function InputScreen({ onGenerate, error }) {
                 </button>
               )}
             </div>
+            {brideName.length >= CHAR_LIMITS.name && (
+              <span className="field-error">
+                Name is too long / नाम की लंबाई कम कीजिए
+              </span>
+            )}
           </div>
         </div>
 
@@ -270,6 +431,9 @@ export default function InputScreen({ onGenerate, error }) {
               onChange={(e) => setVenue(e.target.value)}
               placeholder="e.g., Hotel Rambagh Palace, Jaipur"
               autoComplete="off"
+              autoCapitalize="words"
+              inputMode="text"
+              maxLength={CHAR_LIMITS.venue}
               required
             />
             {isSupported && (
@@ -286,7 +450,78 @@ export default function InputScreen({ onGenerate, error }) {
               </button>
             )}
           </div>
+          {venue.length >= CHAR_LIMITS.venue && (
+            <span className="field-error">
+              Text is too long / लंबाई कम कीजिए
+            </span>
+          )}
         </div>
+
+        {/* Dev Mode Section - shows when venue matches secret phrase */}
+        {devMode && (
+          <div className="form-group">
+            <div className="dev-mode-section">
+              <p className="dev-mode-hint">
+                Dev Mode Active - Control which pipeline steps to skip
+              </p>
+              
+              {/* Dev Mode Toggles */}
+              <div className="dev-toggles-panel">
+                <div className="dev-toggle-row">
+                  <span className="dev-toggle-label">Skip Extraction</span>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${skipExtraction ? 'toggle-on' : ''}`}
+                    onClick={() => setSkipExtraction(!skipExtraction)}
+                    aria-label="Toggle skip extraction"
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+                
+                <div className="dev-toggle-row">
+                  <span className="dev-toggle-label">Skip Image Generation</span>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${skipImageGeneration ? 'toggle-on' : ''}`}
+                    onClick={() => setSkipImageGeneration(!skipImageGeneration)}
+                    aria-label="Toggle skip image generation"
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+                
+                <div className="dev-toggle-row">
+                  <span className="dev-toggle-label">Skip Background Removal</span>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${skipBackgroundRemoval ? 'toggle-on' : ''}`}
+                    onClick={() => setSkipBackgroundRemoval(!skipBackgroundRemoval)}
+                    aria-label="Toggle skip background removal"
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+                
+                <div className="dev-toggle-row">
+                  <span className="dev-toggle-label">Skip Video Generation</span>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${skipVideoGeneration ? 'toggle-on' : ''}`}
+                    onClick={() => setSkipVideoGeneration(!skipVideoGeneration)}
+                    aria-label="Toggle skip video generation"
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+              </div>
+              
+              {devPhotoLoading && (
+                <div className="character-file-loading">Loading dev character...</div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Photo Upload Section */}
         <div className="form-group">
@@ -305,10 +540,26 @@ export default function InputScreen({ onGenerate, error }) {
         <button
           type="submit"
           className="generate-btn"
-          disabled={!hasPhoto}
+          disabled={devMode ? (!hasPhoto || devPhotoLoading) : (!hasPhoto || !rateLimit.canGenerate)}
         >
-          Generate Invite (निमंत्रण बनाएं)
+          {devMode ? "Generate Invite (Dev Mode)" : "Generate Invite (निमंत्रण बनाएं)"}
         </button>
+        
+        {/* Rate limit info */}
+        {!devMode && (
+          <div className={`rate-limit-info ${rateLimit.remaining <= 2 ? 'rate-limit-warning' : ''}`}>
+            {rateLimit.canGenerate ? (
+              <span>
+                {rateLimit.remaining} of {getMaxGenerations()} generations remaining this week
+                {rateLimit.remaining <= 2 && ' ⚠️'}
+              </span>
+            ) : (
+              <span className="rate-limit-exceeded">
+                Limit reached. Resets in {formatResetTime(rateLimit.resetAt)}
+              </span>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );

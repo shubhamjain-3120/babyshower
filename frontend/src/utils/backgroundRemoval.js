@@ -12,6 +12,10 @@
  * The library is only loaded when actually needed.
  */
 
+import { createDevLogger } from "./devLogger";
+
+const logger = createDevLogger("BgRemoval");
+
 // Lazy-loaded module reference
 let removeBackgroundFn = null;
 let loadingPromise = null;
@@ -37,16 +41,28 @@ const REMOVAL_CONFIG = {
  */
 async function loadLibrary() {
   if (removeBackgroundFn) {
+    logger.log("Library already loaded, using cached reference");
     return removeBackgroundFn;
   }
   
   if (loadingPromise) {
+    logger.log("Library loading in progress, waiting...");
     return loadingPromise;
   }
   
+  logger.log("Loading library dynamically...");
+  console.log("[BgRemoval] Loading library dynamically...");
+  const startTime = performance.now();
+  
   loadingPromise = import("@imgly/background-removal").then((module) => {
     removeBackgroundFn = module.removeBackground;
+    const duration = performance.now() - startTime;
+    logger.log("Library loaded", { duration: `${duration.toFixed(0)}ms` });
+    console.log("[BgRemoval] Library loaded");
     return removeBackgroundFn;
+  }).catch((err) => {
+    loadingPromise = null;
+    throw err;
   });
   
   return loadingPromise;
@@ -55,7 +71,7 @@ async function loadLibrary() {
 /**
  * Converts a base64 data URL to a Blob
  */
-function dataURLToBlob(dataURL) {
+export function dataURLToBlob(dataURL) {
   const [header, base64] = dataURL.split(",");
   const mimeMatch = header.match(/:(.*?);/);
   const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
@@ -88,21 +104,55 @@ function blobToDataURL(blob) {
  * @returns {Promise<string>} - Base64 data URL of the image with transparent background
  */
 export async function removeImageBackground(imageDataURL) {
+  logger.log("Starting background removal", {
+    inputLength: imageDataURL?.length,
+  });
+  console.log("[BgRemoval] Starting background removal...");
+  const startTime = performance.now();
+
   try {
     // Load library dynamically if not already loaded
+    logger.log("Step 1: Loading library");
     const removeBackground = await loadLibrary();
-    
+
     // Convert data URL to Blob
+    logger.log("Step 2: Converting data URL to Blob");
     const inputBlob = dataURLToBlob(imageDataURL);
 
+    logger.log("Step 2 complete: Input prepared", {
+      inputSize: `${(inputBlob.size / 1024).toFixed(1)} KB`,
+    });
+    console.log(`[BgRemoval] Input size: ${(inputBlob.size / 1024).toFixed(1)} KB`);
+
     // Remove background
+    logger.log("Step 3: Calling removeBackground() - this may take a while...");
+    const removeStartTime = performance.now();
+
     const resultBlob = await removeBackground(inputBlob, REMOVAL_CONFIG);
+    const removeDuration = performance.now() - removeStartTime;
+
+    logger.log("Step 3 complete: Background removed", {
+      processingTime: `${removeDuration.toFixed(0)}ms`,
+      resultSize: `${(resultBlob.size / 1024).toFixed(1)} KB`,
+    });
 
     // Convert result back to data URL
+    logger.log("Step 4: Converting result to data URL");
     const resultDataURL = await blobToDataURL(resultBlob);
+
+    const duration = performance.now() - startTime;
+    logger.log("Background removal complete", {
+      totalDuration: `${duration.toFixed(0)}ms`,
+      inputSize: `${(inputBlob.size / 1024).toFixed(1)} KB`,
+      outputSize: `${(resultBlob.size / 1024).toFixed(1)} KB`,
+    });
+    console.log(`[BgRemoval] Complete in ${duration.toFixed(0)}ms`);
+    console.log(`[BgRemoval] Output size: ${(resultBlob.size / 1024).toFixed(1)} KB`);
 
     return resultDataURL;
   } catch (error) {
+    logger.error("Background removal failed", error);
+    console.error("[BgRemoval] Error:", error);
     throw new Error(`Background removal failed: ${error.message}`);
   }
 }

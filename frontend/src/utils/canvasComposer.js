@@ -146,10 +146,6 @@ function loadImage(src) {
 }
 
 async function loadFonts() {
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:loadFonts:start',message:'Starting font loading',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
-  
   // Premium typography fonts
   const alexBrush = new FontFace(
     "AlexBrush",
@@ -185,15 +181,9 @@ async function loadFonts() {
     loadedFonts.forEach(font => {
       if (font) document.fonts.add(font);
     });
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:loadFonts:done',message:'Font loading complete',data:{fontsLoaded:loadedFonts.filter(Boolean).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
+
     console.log("[Composer] Premium fonts loaded successfully");
   } catch (err) {
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:loadFonts:error',message:'Font loading failed',data:{error:err.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     console.warn("[Composer] Font loading failed, using fallbacks:", err);
   }
 }
@@ -230,15 +220,8 @@ function calculateFontSize(ctx, text, maxWidth, idealSize, minSize, fontFamily, 
  * Canvas doesn't natively support letter-spacing, so we draw character by character
  */
 function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawTextWithTracking:entry',message:'drawTextWithTracking called',data:{text,x,y,letterSpacing,font:ctx.font,fillStyle:ctx.fillStyle},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
-
   if (letterSpacing <= 0) {
     ctx.fillText(text, x, y);
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawTextWithTracking:noSpacing',message:'No letter spacing, used fillText directly',data:{text,x,y},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     return;
   }
 
@@ -255,20 +238,12 @@ function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
   
   // Start position (centered)
   let currentX = x - totalWidth / 2;
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawTextWithTracking:calculated',message:'Letter tracking calculated',data:{fontSize,spacing,totalWidth,startX:currentX,numChars:chars.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 
   chars.forEach((char, i) => {
     const charWidth = ctx.measureText(char).width;
     ctx.fillText(char, currentX + charWidth / 2, y);
     currentX += charWidth + spacing;
   });
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawTextWithTracking:exit',message:'drawTextWithTracking completed',data:{finalX:currentX},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 }
 
 /**
@@ -596,20 +571,12 @@ function formatDateDisplay(dateStr) {
  * Clean humanist sans-serif with warm metallic gold
  */
 function drawDateText(ctx, dateStr) {
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawDateText:entry',message:'drawDateText called',data:{dateStr,dateStrType:typeof dateStr,dateStrLength:dateStr?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
-
   const layout = LAYOUT_V4.date;
   const y = CANVAS_HEIGHT * layout.yPercent;
   const fontSize = LAYOUT_V4.baseFontSize * layout.fontRatio;
 
   const formattedDate = formatDateDisplay(dateStr);
   const displayText = `Date: ${formattedDate}`;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawDateText:values',message:'Date text values computed',data:{formattedDate,displayText,y,fontSize,fontFamily:layout.fontFamily,color:layout.color,letterSpacing:layout.letterSpacing,canvasWidth:CANVAS_WIDTH,canvasHeight:CANVAS_HEIGHT},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   // Playfair Display for elegant date text
   ctx.font = `${layout.fontWeight} ${fontSize}px ${layout.fontFamily}`;
@@ -624,10 +591,6 @@ function drawDateText(ctx, dateStr) {
 
   // Light brown color
   ctx.fillStyle = layout.color;
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawDateText:beforeDraw',message:'About to call drawTextWithTracking for date',data:{x:CANVAS_WIDTH/2,y,letterSpacing:layout.letterSpacing,font:ctx.font,fillStyle:ctx.fillStyle},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 
   // Draw with moderate letter-spacing
   drawTextWithTracking(ctx, displayText, CANVAS_WIDTH / 2, y, layout.letterSpacing);
@@ -637,29 +600,17 @@ function drawDateText(ctx, dateStr) {
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawDateText:exit',message:'drawDateText completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 }
 
 /**
  * Draw venue text with Playfair Display - light brown color
  */
 function drawVenueText(ctx, venue) {
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawVenueText:entry',message:'drawVenueText called',data:{venue,venueType:typeof venue,venueLength:venue?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
-
   const layout = LAYOUT_V4.venue;
   const y = CANVAS_HEIGHT * layout.yPercent;
   const fontSize = LAYOUT_V4.baseFontSize * layout.fontRatio;
 
   const displayText = `Venue: ${venue}`;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawVenueText:values',message:'Venue text values computed',data:{displayText,y,fontSize,fontFamily:layout.fontFamily,color:layout.color,letterSpacing:layout.letterSpacing},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   // Playfair Display for elegant venue text
   ctx.font = `${layout.fontWeight} ${fontSize}px ${layout.fontFamily}`;
@@ -674,10 +625,6 @@ function drawVenueText(ctx, venue) {
 
   // Light brown color
   ctx.fillStyle = layout.color;
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawVenueText:beforeDraw',message:'About to call drawTextWithTracking for venue',data:{x:CANVAS_WIDTH/2,y,letterSpacing:layout.letterSpacing,font:ctx.font,fillStyle:ctx.fillStyle},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 
   // Draw with moderate letter-spacing
   drawTextWithTracking(ctx, displayText, CANVAS_WIDTH / 2, y, layout.letterSpacing);
@@ -687,10 +634,6 @@ function drawVenueText(ctx, venue) {
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 0;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:drawVenueText:exit',message:'drawVenueText completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 }
 
 // ============================================================================
@@ -827,18 +770,11 @@ function createBackgroundCanvas(backgroundImg) {
  * @returns {Promise<string>} - Data URL of final PNG
  */
 export async function composeInvite({ characterImage, brideName, groomName, date, venue }) {
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:composeInvite:start',message:'Starting composition',data:{brideName,groomName,date,venue,hasCharacterImage:!!characterImage},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
   console.log("[Composer] Starting Phase 4 composition...");
   const startTime = performance.now();
 
   // Load fonts
   await loadFonts();
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:composeInvite:loadingImages',message:'Loading images',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 
   // Load images in parallel
   const [backgroundImg, characterImg, pinkRoseImg] = await Promise.all([
@@ -846,10 +782,6 @@ export async function composeInvite({ characterImage, brideName, groomName, date
     loadImage(characterImage),
     loadImage("/assets/pink-rose.svg").catch(() => null),
   ]);
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6053f2e8-8bd0-4925-9c37-b354d1444919',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'canvasComposer.js:composeInvite:imagesLoaded',message:'Images loaded',data:{hasBackground:!!backgroundImg,hasCharacter:!!characterImg},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
 
   console.log(`[Composer] Images loaded: ${(performance.now() - startTime).toFixed(0)}ms`);
 

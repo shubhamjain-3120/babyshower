@@ -1,26 +1,78 @@
 import { useCallback, useEffect, useState } from "react";
+import { createDevLogger } from "../utils/devLogger";
+import { trackPageView, trackClick } from "../utils/analytics";
+
+const logger = createDevLogger("ResultScreen");
+
+// Sanitize names for use in filenames - prevent path traversal and special chars
+const sanitizeForFilename = (name) => {
+  if (!name) return "unknown";
+  return name
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "") // Remove invalid filename chars
+    .replace(/\.\./g, "") // Prevent path traversal
+    .replace(/[^\w\s-]/g, "") // Keep only word chars, spaces, hyphens
+    .trim()
+    .substring(0, 30) || "unknown";
+};
 
 export default function ResultScreen({ inviteVideo, brideName, groomName, onReset }) {
-  const [videoUrl, setVideoUrl] = useState(null);
+  const [mediaUrl, setMediaUrl] = useState(null);
+  const [isImage, setIsImage] = useState(false);
 
-  // Create object URL from blob when video changes
+  // Track page view on mount
   useEffect(() => {
+    trackPageView('result');
+  }, []);
+
+  // Create object URL from blob when media changes
+  useEffect(() => {
+    logger.log("Media prop received", {
+      type: inviteVideo instanceof Blob ? "Blob" : typeof inviteVideo,
+      size: inviteVideo instanceof Blob ? `${(inviteVideo.size / 1024 / 1024).toFixed(2)} MB` : "N/A",
+      mimeType: inviteVideo instanceof Blob ? inviteVideo.type : "N/A",
+    });
+
     if (inviteVideo instanceof Blob) {
       const url = URL.createObjectURL(inviteVideo);
-      setVideoUrl(url);
+      setMediaUrl(url);
       
-      // Cleanup URL on unmount or when video changes
+      // Check if it's an image or video based on MIME type
+      const isImageType = inviteVideo.type.startsWith('image/');
+      setIsImage(isImageType);
+      
+      logger.log("Media URL created from Blob", { 
+        url: url.slice(0, 50) + "...",
+        isImage: isImageType,
+        mimeType: inviteVideo.type
+      });
+      
+      // Cleanup URL on unmount or when media changes
       return () => {
+        logger.log("Cleaning up media URL");
         URL.revokeObjectURL(url);
       };
     } else if (typeof inviteVideo === 'string') {
       // Already a URL
-      setVideoUrl(inviteVideo);
+      setMediaUrl(inviteVideo);
+      // Try to detect if it's an image from the URL
+      setIsImage(inviteVideo.match(/\.(png|jpg|jpeg|gif|webp)$/i) !== null);
+      logger.log("Using existing media URL");
     }
   }, [inviteVideo]);
 
   const handleDownload = useCallback(() => {
+    trackClick(isImage ? 'image_download' : 'video_download');
+    
+    logger.log("Download initiated", {
+      brideName,
+      groomName,
+      mediaSize: inviteVideo instanceof Blob ? `${(inviteVideo.size / 1024 / 1024).toFixed(2)} MB` : "N/A",
+      mediaType: inviteVideo instanceof Blob ? inviteVideo.type : "N/A",
+      isImage,
+    });
+
     if (!inviteVideo) {
+      logger.warn("Download", "No media available");
       return;
     }
     
@@ -32,7 +84,26 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
       link.href = inviteVideo;
     }
     
-    link.download = `wedding-invite-${groomName}-${brideName}.mp4`;
+    // Determine extension based on MIME type
+    let extension;
+    if (inviteVideo instanceof Blob) {
+      const mimeType = inviteVideo.type;
+      if (mimeType.startsWith('image/')) {
+        extension = mimeType.split('/')[1] || 'png';
+        // Handle special cases
+        if (extension === 'jpeg') extension = 'jpg';
+      } else if (mimeType === 'video/mp4') {
+        extension = 'mp4';
+      } else {
+        extension = 'webm';
+      }
+    } else {
+      extension = 'mp4';
+    }
+    
+    // Sanitize names to prevent filename injection
+    link.download = `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`;
+    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -41,74 +112,118 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
     if (inviteVideo instanceof Blob) {
       URL.revokeObjectURL(link.href);
     }
-  }, [inviteVideo, brideName, groomName]);
+
+    logger.log("Download complete", { filename: link.download, actualType: inviteVideo?.type });
+  }, [inviteVideo, brideName, groomName, isImage]);
 
   const handleShare = useCallback(async () => {
+    logger.log("Share initiated", { brideName, groomName, isImage });
+
     try {
       let file;
       
       if (inviteVideo instanceof Blob) {
-        file = new File([inviteVideo], `wedding-invite-${groomName}-${brideName}.mp4`, {
-          type: "video/mp4",
+        // Determine extension and MIME type based on actual blob
+        const mimeType = inviteVideo.type;
+        let extension;
+        
+        if (mimeType.startsWith('image/')) {
+          extension = mimeType.split('/')[1] || 'png';
+          if (extension === 'jpeg') extension = 'jpg';
+        } else if (mimeType === 'video/mp4') {
+          extension = 'mp4';
+        } else {
+          extension = 'webm';
+        }
+        
+        // Sanitize names for filename
+        file = new File([inviteVideo], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
+          type: mimeType,
         });
+        logger.log("Created file from Blob for sharing", { extension, mimeType });
       } else {
         // Convert URL to blob first
+        logger.log("Converting URL to blob for sharing");
         const response = await fetch(inviteVideo);
         const blob = await response.blob();
-        file = new File([blob], `wedding-invite-${groomName}-${brideName}.mp4`, {
-          type: "video/mp4",
+        const mimeType = blob.type;
+        let extension;
+        
+        if (mimeType.startsWith('image/')) {
+          extension = mimeType.split('/')[1] || 'png';
+          if (extension === 'jpeg') extension = 'jpg';
+        } else if (mimeType === 'video/mp4') {
+          extension = 'mp4';
+        } else {
+          extension = 'webm';
+        }
+        
+        // Sanitize names for filename
+        file = new File([blob], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
+          type: mimeType,
         });
       }
 
       // Check if Web Share API is available and can share files
       const canShare = navigator.share && navigator.canShare?.({ files: [file] });
+      logger.log("Checking share capability", { canShare });
 
       if (canShare) {
+        trackClick(isImage ? 'image_share' : 'video_share', { share_method: 'native' });
+        logger.log("Using Web Share API");
         await navigator.share({
           title: `${groomName} & ${brideName} Wedding Invite`,
           text: `You're invited to the wedding of ${groomName} & ${brideName}!`,
           files: [file],
         });
+        logger.log("Share completed successfully");
       } else {
-        // Fallback: Open WhatsApp with text (video needs manual attachment)
+        // Fallback: Open WhatsApp with text (media needs manual attachment)
+        trackClick(isImage ? 'image_share' : 'video_share', { share_method: 'whatsapp_fallback' });
+        logger.log("Falling back to WhatsApp share");
         const text = encodeURIComponent(
           `You're invited to the wedding of ${groomName} & ${brideName}!`
         );
         window.open(`https://wa.me/?text=${text}`, "_blank");
-        alert("Download the video and attach it to your WhatsApp message");
+        alert(`Download the ${isImage ? 'image' : 'video'} and attach it to your WhatsApp message`);
       }
     } catch (err) {
       if (err.name !== "AbortError") {
+        logger.error("Share failed", err);
         console.error("Share error:", err);
         // Fallback to WhatsApp
         const text = encodeURIComponent(
           `You're invited to the wedding of ${groomName} & ${brideName}!`
         );
         window.open(`https://wa.me/?text=${text}`, "_blank");
+      } else {
+        logger.log("Share cancelled by user");
       }
     }
-  }, [inviteVideo, brideName, groomName]);
+  }, [inviteVideo, brideName, groomName, isImage]);
 
   return (
     <div className="result-screen">
-      <header className="result-header">
-        <h1>Your Wedding Invite</h1>
-        <p className="hindi-subtitle">आपका शादी का निमंत्रण</p>
-      </header>
-
-      <div className="invite-preview video-preview">
-        {videoUrl ? (
-          <video 
-            src={videoUrl} 
-            className="invite-video" 
-            controls 
-            autoPlay 
-            loop 
-            muted
-            playsInline
-          />
+      <div className={`invite-preview ${isImage ? 'image-preview' : 'video-preview'}`}>
+        {mediaUrl ? (
+          isImage ? (
+            <img 
+              src={mediaUrl} 
+              className="invite-image" 
+              alt="Wedding invite preview"
+            />
+          ) : (
+            <video 
+              src={mediaUrl} 
+              className="invite-video" 
+              controls 
+              autoPlay 
+              loop 
+              playsInline
+            />
+          )
         ) : (
-          <div className="video-loading">Loading video...</div>
+          <div className="video-loading">Loading {isImage ? 'image' : 'video'}...</div>
         )}
       </div>
 
@@ -119,7 +234,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          Download Video (डाउनलोड)
+          {isImage ? 'Download Image (डाउनलोड)' : 'Download Video (डाउनलोड)'}
         </button>
         <button className="share-btn" onClick={handleShare}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -127,7 +242,10 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
           </svg>
           Share (शेयर करें)
         </button>
-        <button className="start-over-btn" onClick={onReset}>
+        <button className="start-over-btn" onClick={() => {
+          trackClick('start_over');
+          onReset();
+        }}>
           Start Over (फिर से शुरू करें)
         </button>
       </div>

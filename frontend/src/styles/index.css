@@ -7,6 +7,46 @@
   box-sizing: border-box;
 }
 
+/* Mobile UX enhancements */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Remove tap highlight on mobile - cleaner touch experience */
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent pull-to-refresh on fixed/fullscreen elements */
+.onboarding-screen,
+.loading-screen {
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+}
+
+/* Better focus states - visible for keyboard, subtle for touch */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+/* Disable text selection on buttons for cleaner mobile UX */
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 :root {
   --color-primary: #8B0000;
   --color-primary-dark: #5C0000;
@@ -18,13 +58,22 @@
   --color-error: #DC3545;
   --color-gray: #666666;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Safe area insets for notches and home indicators */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
 }
 
 html, body {
   font-family: var(--font-sans);
   background: linear-gradient(135deg, var(--color-cream) 0%, #FFE4B5 100%);
   min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
   color: var(--color-brown);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -32,9 +81,147 @@ html, body {
 }
 
 .app {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding-top: calc(88px + var(--safe-area-top)); /* Space for fixed header */
+}
+
+/* ============================================================================
+   OFFLINE BANNER - Shows when user is offline
+   ============================================================================ */
+
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
+  color: white;
+  text-align: center;
+  padding: 10px 20px;
+  padding-top: calc(10px + var(--safe-area-top));
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   LOADING FALLBACK - Shows while lazy components load
+   ============================================================================ */
+
+.loading-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(139, 0, 0, 0.1);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+   APP HEADER - Unified header with logo, title, and sound button
+   ============================================================================ */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  padding-top: calc(16px + var(--safe-area-top));
+  padding-left: calc(20px + var(--safe-area-left));
+  padding-right: calc(20px + var(--safe-area-right));
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: linear-gradient(135deg, var(--color-cream) 0%, #FFE4B5 100%);
+}
+
+.app-header-logo {
+  flex-shrink: 0;
+}
+
+.app-header-logo-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(139, 0, 0, 0.15),
+              0 0 0 2px var(--color-gold);
+}
+
+.app-header-title {
+  flex: 1;
+  text-align: center;
+  padding: 0 12px;
+}
+
+.app-header-title h1 {
+  font-size: 18px;
+  color: var(--color-primary);
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+}
+
+.app-header-title p {
+  font-size: 11px;
+  color: var(--color-brown);
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.app-header-actions {
+  flex-shrink: 0;
+}
+
+.music-toggle-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.music-toggle-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  background: var(--color-white);
+}
+
+.music-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.music-toggle-btn svg {
+  color: var(--color-primary);
 }
 
 /* ============================================================================
@@ -43,27 +230,13 @@ html, body {
 
 .input-screen {
   flex: 1;
-  padding: 20px;
+  padding: 0 20px 20px;
+  padding-bottom: calc(20px + var(--safe-area-bottom));
+  padding-left: calc(20px + var(--safe-area-left));
+  padding-right: calc(20px + var(--safe-area-right));
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
-}
-
-.header {
-  text-align: center;
-  padding: 20px 0 30px;
-}
-
-.header h1 {
-  font-size: 22px;
-  color: var(--color-primary);
-  margin-bottom: 8px;
-}
-
-.header p {
-  font-size: 11px;
-  color: var(--color-brown);
-  opacity: 0.8;
 }
 
 .error-banner {
@@ -72,7 +245,8 @@ html, body {
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .form {
@@ -81,10 +255,11 @@ html, body {
   gap: 20px;
 }
 
-/* Form row for side-by-side inputs */
+/* Form row - always stacked vertically */
 .form-row {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .form-row .form-group {
@@ -98,17 +273,19 @@ html, body {
 }
 
 .form-group label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-brown);
+  line-height: 1.4;
 }
 
 .form-group input[type="text"],
 .form-group input[type="date"] {
   padding: 14px 16px;
+  min-height: 48px;
   border: 2px solid #DDD;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
   transition: border-color 0.2s;
   background: var(--color-white);
 }
@@ -121,9 +298,18 @@ html, body {
 
 /* Date preview text */
 .date-preview {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--color-gray);
   margin-top: 4px;
+}
+
+/* Field error message */
+.field-error {
+  font-size: 11px;
+  color: var(--color-error);
+  margin-top: 4px;
+  display: block;
+  line-height: 1.3;
 }
 
 /* ============================================================================
@@ -141,18 +327,20 @@ html, body {
 }
 
 .toggle-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-brown);
 }
 
 .toggle-switch {
   position: relative;
-  width: 50px;
-  height: 28px;
+  width: 52px;
+  height: 32px;
+  min-width: 52px;
+  min-height: 32px;
   background: #ccc;
   border: none;
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
   transition: background 0.2s;
   padding: 0;
@@ -166,8 +354,8 @@ html, body {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   background: var(--color-white);
   border-radius: 50%;
   transition: transform 0.2s;
@@ -175,11 +363,62 @@ html, body {
 }
 
 .toggle-switch.toggle-on .toggle-knob {
-  transform: translateX(22px);
+  transform: translateX(20px);
 }
 
 .dev-mode-section {
   margin-top: 12px;
+}
+
+.dev-mode-hint {
+  font-size: 12px;
+  color: var(--color-gray);
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(139, 0, 0, 0.05);
+  border-radius: 6px;
+  border-left: 3px solid var(--color-primary);
+  line-height: 1.4;
+}
+
+/* Dev Mode Toggle Panel */
+.dev-toggles-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(139, 0, 0, 0.03);
+  border-radius: 8px;
+  border: 1px dashed rgba(139, 0, 0, 0.2);
+}
+
+.dev-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dev-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.dev-toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-brown);
+}
+
+.character-file-loading {
+  padding: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-gray);
+  background: rgba(139, 0, 0, 0.03);
+  border-radius: 10px;
+  border: 2px dashed #ddd;
 }
 
 .character-file-preview {
@@ -215,6 +454,7 @@ html, body {
 .voice-btn {
   width: 48px;
   min-width: 48px;
+  min-height: 48px;
   border: 2px solid #DDD;
   border-radius: 10px;
   background: var(--color-white);
@@ -228,6 +468,10 @@ html, body {
 .voice-btn:hover {
   border-color: var(--color-gold);
   background: var(--color-cream);
+}
+
+.voice-btn:active:not(.listening) {
+  transform: scale(0.95);
 }
 
 .voice-btn.listening {
@@ -272,10 +516,11 @@ html, body {
 
 .upload-btn {
   padding: 14px;
+  min-height: 48px;
   background: var(--color-white);
   border: 2px dashed var(--color-gold);
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-brown);
   cursor: pointer;
   transition: all 0.2s;
@@ -285,6 +530,10 @@ html, body {
 .upload-btn:hover {
   background: var(--color-cream);
   border-style: solid;
+}
+
+.upload-btn:active {
+  transform: scale(0.98);
 }
 
 .upload-btn-large {
@@ -302,14 +551,27 @@ html, body {
 }
 
 .upload-text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-brown);
 }
 
 .upload-hint {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--color-gray);
+}
+
+.upload-text-hindi {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-brown);
+  opacity: 0.85;
+}
+
+.upload-hint-hindi {
+  font-size: 11px;
+  color: var(--color-gray);
+  opacity: 0.9;
 }
 
 /* Single photo display */
@@ -328,7 +590,7 @@ html, body {
 }
 
 .photo-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-gray);
   text-transform: uppercase;
@@ -393,11 +655,12 @@ html, body {
 
 /* Change photos button */
 .change-photos-btn {
-  padding: 10px 20px;
+  padding: 12px 20px;
+  min-height: 44px;
   background: transparent;
   border: 1px solid var(--color-gray);
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-gray);
   cursor: pointer;
   transition: all 0.2s;
@@ -412,11 +675,12 @@ html, body {
 .generate-btn {
   margin-top: 10px;
   padding: 18px;
+  min-height: 52px;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: var(--color-white);
   border: none;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
@@ -436,6 +700,35 @@ html, body {
   cursor: not-allowed;
 }
 
+/* Active state for mobile touch feedback */
+.generate-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   RATE LIMIT INFO
+   ============================================================================ */
+
+.rate-limit-info {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: rgba(191, 158, 50, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-gray);
+}
+
+.rate-limit-info.rate-limit-warning {
+  background: rgba(255, 193, 7, 0.15);
+  color: #856404;
+}
+
+.rate-limit-info .rate-limit-exceeded {
+  color: var(--color-error);
+  font-weight: 500;
+}
+
 /* ============================================================================
    LOADING SCREEN - PHASE 4 UPDATES
    ============================================================================ */
@@ -447,12 +740,23 @@ html, body {
   right: 0;
   bottom: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 20px;
+  padding-top: 18vh; /* Position content at ~18% from top for visual balance */
+  padding-top: calc(100px + var(--safe-area-top)); /* Account for app header */
+  padding-bottom: calc(20px + var(--safe-area-bottom));
   text-align: center;
   overflow: hidden;
   background: var(--color-cream);
+}
+
+.loading-screen .loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .loading-content {
@@ -492,11 +796,15 @@ html, body {
 }
 
 .progress-bar {
+  width: 280px;
+  max-width: 80%;
   height: 12px;
   background: rgba(139, 0, 0, 0.1);
   border-radius: 6px;
   overflow: hidden;
   margin-bottom: 8px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .progress-fill {
@@ -507,13 +815,13 @@ html, body {
 }
 
 .progress-text {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-brown);
   font-weight: 500;
 }
 
 .loading-subtext {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-brown);
   opacity: 0.7;
 }
@@ -526,29 +834,13 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 0 20px 20px;
+  padding-bottom: calc(20px + var(--safe-area-bottom));
+  padding-left: calc(20px + var(--safe-area-left));
+  padding-right: calc(20px + var(--safe-area-right));
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
-}
-
-.result-header {
-  text-align: center;
-  padding: 10px 0 20px;
-  margin-top: 5vh;
-}
-
-.result-header h1 {
-  font-size: 19px;
-  color: var(--color-primary);
-  margin-bottom: 4px;
-}
-
-.result-header .hindi-subtitle {
-  font-size: 14px;
-  color: var(--color-primary);
-  opacity: 0.85;
-  margin: 0;
 }
 
 .invite-preview {
@@ -564,6 +856,15 @@ html, body {
   max-height: 60vh;
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  background: repeating-conic-gradient(#f0f0f0 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+}
+
+/* Image preview container */
+.image-preview {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* Video preview styles */
@@ -588,7 +889,7 @@ html, body {
   background: rgba(0, 0, 0, 0.05);
   border-radius: 12px;
   color: var(--color-brown);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .action-buttons {
@@ -602,9 +903,10 @@ html, body {
 .start-over-btn {
   flex: 1;
   padding: 16px 24px;
+  min-height: 52px;
   border: none;
   border-radius: 50px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -691,16 +993,106 @@ html, body {
 }
 
 /* ============================================================================
-   MOBILE OPTIMIZATIONS
+   MOBILE OPTIMIZATIONS - Mobile-First Responsive Breakpoints
    ============================================================================ */
 
-@media (max-width: 380px) {
-  .header h1 {
-    font-size: 19px;
+/* Medium mobile devices (iPhone Plus/Max, Android) - 414px and below */
+@media (max-width: 414px) {
+  .app {
+    padding-top: calc(80px + var(--safe-area-top));
+  }
+
+  .app-header {
+    padding: 12px 16px;
+    padding-top: calc(12px + var(--safe-area-top));
+    padding-left: calc(16px + var(--safe-area-left));
+    padding-right: calc(16px + var(--safe-area-right));
+  }
+
+  .app-header-logo-img {
+    width: 48px;
+    height: 48px;
+  }
+
+  .app-header-title h1 {
+    font-size: 16px;
+  }
+
+  .app-header-title p {
+    font-size: 10px;
+  }
+
+  .input-screen,
+  .result-screen {
+    padding: 0 16px 16px;
+    padding-bottom: calc(16px + var(--safe-area-bottom));
+    padding-left: calc(16px + var(--safe-area-left));
+    padding-right: calc(16px + var(--safe-area-right));
+  }
+
+  .loading-screen {
+    padding-top: 15vh;
+  }
+
+  .onboarding-screen {
+    padding-top: calc(90px + var(--safe-area-top));
+  }
+
+  .form {
+    gap: 18px;
+  }
+
+  .action-buttons {
+    gap: 12px;
+  }
+
+  .download-btn,
+  .share-btn {
+    padding: 14px 20px;
+    font-size: 12px;
+  }
+
+}
+
+/* Small mobile devices (iPhone SE/mini, small Android) - 375px and below */
+@media (max-width: 375px) {
+  .app {
+    padding-top: calc(76px + var(--safe-area-top));
+  }
+
+  .app-header-logo-img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .app-header-title h1 {
+    font-size: 15px;
+  }
+
+  .app-header-title p {
+    font-size: 9px;
+  }
+
+  .music-toggle-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .music-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .loading-screen {
+    padding-top: 14vh;
+  }
+
+  .onboarding-screen {
+    padding-top: calc(85px + var(--safe-area-top));
   }
 
   .loading-text {
-    font-size: 16px;
+    font-size: 17px;
   }
 
   .form-group input[type="text"],
@@ -710,34 +1102,512 @@ html, body {
 
   .generate-btn {
     padding: 16px;
+    font-size: 14px;
+  }
+
+  .photo-preview {
+    width: 120px;
+    height: 120px;
+  }
+
+  .mascot-large {
+    max-width: 280px;
+    max-height: 280px;
+  }
+}
+
+/* Very small devices (iPhone SE 1st gen, older Android) - 320px and below */
+@media (max-width: 320px) {
+  .app {
+    padding-top: calc(70px + var(--safe-area-top));
+  }
+
+  .app-header {
+    padding: 10px 12px;
+    padding-top: calc(10px + var(--safe-area-top));
+    padding-left: calc(12px + var(--safe-area-left));
+    padding-right: calc(12px + var(--safe-area-right));
+  }
+
+  .app-header-logo-img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .app-header-title {
+    padding: 0 8px;
+  }
+
+  .app-header-title h1 {
+    font-size: 14px;
+  }
+
+  .app-header-title p {
+    font-size: 8px;
+  }
+
+  .music-toggle-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .music-toggle-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .input-screen,
+  .result-screen {
+    padding: 0 12px 12px;
+    padding-bottom: calc(12px + var(--safe-area-bottom));
+    padding-left: calc(12px + var(--safe-area-left));
+    padding-right: calc(12px + var(--safe-area-right));
+  }
+
+  .loading-screen {
+    padding-top: 12vh;
+  }
+
+  .onboarding-screen {
+    padding-top: calc(80px + var(--safe-area-top));
+  }
+
+  .loading-text {
+    font-size: 15px;
+  }
+
+  .form {
+    gap: 14px;
+  }
+
+  .form-group label {
+    font-size: 11px;
+  }
+
+  .form-group input[type="text"],
+  .form-group input[type="date"] {
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+
+  .generate-btn {
+    padding: 14px;
     font-size: 13px;
   }
 
-  /* Stack name inputs on very small screens */
-  .form-row {
-    flex-direction: column;
-  }
-
-  /* Smaller photos on mobile */
   .photo-preview {
-    width: 110px;
-    height: 110px;
+    width: 100px;
+    height: 100px;
   }
 
-  /* Slightly smaller mascot on very small screens */
   .mascot-large {
-    max-width: 260px;
-    max-height: 260px;
+    max-width: 220px;
+    max-height: 220px;
   }
 
-  /* Smaller voice button on mobile */
   .voice-btn {
     width: 44px;
     min-width: 44px;
+    min-height: 44px;
   }
 
   .voice-icon {
     width: 18px;
     height: 18px;
+  }
+
+  .download-btn,
+  .share-btn,
+  .start-over-btn {
+    padding: 12px 16px;
+    font-size: 11px;
+    min-height: 48px;
+  }
+
+  .action-buttons {
+    gap: 10px;
+  }
+}
+
+/* ============================================================================
+   ONBOARDING SCREEN
+   ============================================================================ */
+
+.onboarding-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  padding-top: calc(100px + var(--safe-area-top)); /* Account for app header */
+  padding-bottom: calc(24px + var(--safe-area-bottom));
+  background: linear-gradient(135deg, var(--color-cream) 0%, #FFE4B5 100%);
+  text-align: center;
+  overflow: hidden;
+}
+
+.onboarding-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Welcome screen (Step 1) */
+.onboarding-welcome {
+  gap: 24px;
+  padding: 40px 20px;
+}
+
+/* App logo on welcome screen */
+.app-logo {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-white);
+  box-shadow: 0 8px 32px rgba(139, 0, 0, 0.25),
+              0 0 0 4px var(--color-gold),
+              0 0 0 8px rgba(191, 158, 50, 0.2);
+  animation: logoFadeIn 0.6s ease-out;
+}
+
+@keyframes logoFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.whatsapp-logo {
+  width: 28px;
+  height: 28px;
+  fill: #25D366;
+  flex-shrink: 0;
+  vertical-align: middle;
+  margin-right: 4px;
+  margin-bottom: 2px;
+}
+
+.whatsapp-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboarding-title {
+  font-size: 22px;
+  color: var(--color-primary);
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+/* Photo container (Steps 2 & 3) */
+.onboarding-photo-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Video container (Step 4) */
+.onboarding-video-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Onboarding header - unified for all steps */
+.onboarding-header {
+  font-size: 20px;
+  color: var(--color-primary);
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.onboarding-header-hindi {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.85;
+  display: block;
+  margin-top: 4px;
+}
+
+.onboarding-photo {
+  max-width: 100%;
+  max-height: 50vh;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  object-fit: contain;
+}
+
+.onboarding-video {
+  max-width: 100%;
+  max-height: 50vh;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  background: #000;
+}
+
+/* Sparkle icon animation */
+.sparkle-icon {
+  position: absolute;
+  bottom: 10%;
+  right: 5%;
+  width: 56px;
+  height: 56px;
+  animation: sparklePop 0.4s ease-out forwards;
+  pointer-events: none;
+}
+
+.sparkle-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: var(--color-gold);
+  filter: drop-shadow(0 2px 8px rgba(191, 158, 50, 0.5));
+}
+
+@keyframes sparklePop {
+  0% {
+    transform: scale(0) rotate(-20deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.2) rotate(5deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Back button - positioned below the fixed app header */
+.back-btn {
+  position: absolute;
+  top: calc(100px + var(--safe-area-top));
+  left: calc(20px + var(--safe-area-left));
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.back-btn svg {
+  width: 24px;
+  height: 24px;
+  color: var(--color-primary);
+}
+
+.back-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.back-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.back-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.continue-btn {
+  margin-top: 32px;
+  padding: 16px 44px;
+  min-height: 52px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: var(--color-white);
+  border: none;
+  border-radius: 50px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.continue-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 0, 0, 0.4);
+}
+
+.continue-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.continue-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Mobile optimizations for onboarding - 414px and below */
+@media (max-width: 414px) {
+  .back-btn {
+    top: calc(90px + var(--safe-area-top));
+    left: calc(16px + var(--safe-area-left));
+  }
+
+  .onboarding-welcome {
+    gap: 22px;
+    padding: 32px 16px;
+  }
+
+  .app-logo {
+    width: 160px;
+    height: 160px;
+  }
+
+  .continue-btn {
+    margin-top: 28px;
+    padding: 15px 40px;
+  }
+}
+
+/* Onboarding - 375px and below */
+@media (max-width: 375px) {
+  .back-btn {
+    top: calc(85px + var(--safe-area-top));
+    width: 44px;
+    height: 44px;
+  }
+
+  .back-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .onboarding-welcome {
+    gap: 20px;
+    padding: 28px 16px;
+  }
+
+  .app-logo {
+    width: 140px;
+    height: 140px;
+  }
+
+  .onboarding-title {
+    font-size: 19px;
+  }
+
+  .onboarding-header {
+    font-size: 18px;
+  }
+
+  .onboarding-header-hindi {
+    font-size: 14px;
+  }
+
+  .whatsapp-logo {
+    width: 24px;
+    height: 24px;
+  }
+
+  .onboarding-photo,
+  .onboarding-video {
+    max-height: 48vh;
+  }
+
+  .continue-btn {
+    margin-top: 24px;
+    padding: 14px 36px;
+    font-size: 14px;
+  }
+}
+
+/* Onboarding - 320px and below */
+@media (max-width: 320px) {
+  .back-btn {
+    top: calc(80px + var(--safe-area-top));
+    left: calc(12px + var(--safe-area-left));
+    width: 40px;
+    height: 40px;
+  }
+
+  .back-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .onboarding-welcome {
+    gap: 16px;
+    padding: 24px 12px;
+  }
+
+  .app-logo {
+    width: 120px;
+    height: 120px;
+  }
+
+  .onboarding-title {
+    font-size: 17px;
+  }
+
+  .onboarding-header {
+    font-size: 16px;
+  }
+
+  .onboarding-header-hindi {
+    font-size: 13px;
+  }
+
+  .whatsapp-logo {
+    width: 22px;
+    height: 22px;
+  }
+
+  .onboarding-photo,
+  .onboarding-video {
+    max-height: 42vh;
+  }
+
+  .sparkle-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .continue-btn {
+    margin-top: 20px;
+    padding: 12px 32px;
+    font-size: 13px;
+  }
+}
+
+/* Taller screens - use more vertical space */
+@media (min-height: 800px) {
+  .onboarding-photo,
+  .onboarding-video {
+    max-height: 55vh;
+  }
+
+  .onboarding-welcome {
+    gap: 32px;
   }
 }
