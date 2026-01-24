@@ -13,7 +13,7 @@ import { trackPageView } from "../utils/analytics";
  * 6. 98-100%: Final completion (instant on backend finish)
  */
 
-export default function LoadingScreen({ completed = false }) {
+export default function LoadingScreen({ completed = false, onCancel }) {
   const [progress, setProgress] = useState(0);
 
   // Track page view on mount
@@ -136,6 +136,17 @@ export default function LoadingScreen({ completed = false }) {
         <p className="loading-subtext">
           Creating your beautiful wedding invite...
         </p>
+
+        {/* Cancel button */}
+        {onCancel && (
+          <button
+            className="cancel-btn"
+            onClick={onCancel}
+            type="button"
+          >
+            Cancel (रद्द करें)
+          </button>
+        )}
       </div>
     </div>
   );

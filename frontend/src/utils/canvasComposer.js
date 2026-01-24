@@ -443,8 +443,8 @@ function drawNamesText(ctx, brideName, groomName, pinkRoseImg) {
   const idealSize = LAYOUT_V4.baseFontSize * layout.fontRatio;
   const minSize = LAYOUT_V4.baseFontSize * 1.2;
   
-  // Reference combined character count for ideal font size (bride + groom names)
-  const IDEAL_COMBINED_LENGTH = 13;
+  // Reference combined character count for ideal font size (bride + groom names including spaces)
+  const IDEAL_COMBINED_LENGTH = 10;
 
   // Format names with first letter capitalized for cursive elegance
   const brideNameFormatted = capitalizeFirst(brideName);
@@ -452,13 +452,13 @@ function drawNamesText(ctx, brideName, groomName, pinkRoseImg) {
   const ampersand = " & ";
   const fullText = `${brideNameFormatted}${ampersand}${groomNameFormatted}`;
 
-  // Calculate font size based on combined name length
-  // If combined length exceeds 13 characters, scale down proportionally
-  const combinedNameLength = brideNameFormatted.length + groomNameFormatted.length;
+  // Calculate font size based on combined name length (including spaces)
+  // 15 chars (including spaces) is perfect; if more, scale down proportionally
+  const combinedNameLength = brideNameFormatted.length + groomNameFormatted.length + 3; // +3 for " & "
   let adjustedIdealSize = idealSize;
   
   if (combinedNameLength > IDEAL_COMBINED_LENGTH) {
-    // Scale down proportionally: 13 chars = 100%, 20 chars = 65%, etc.
+    // Scale down proportionally: 15 chars = 100%, 20 chars = 75%, etc.
     const scaleFactor = IDEAL_COMBINED_LENGTH / combinedNameLength;
     adjustedIdealSize = idealSize * scaleFactor;
     // Ensure we don't go below minimum size

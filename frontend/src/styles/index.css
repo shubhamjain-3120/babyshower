@@ -826,6 +826,32 @@ html, body {
   opacity: 0.7;
 }
 
+/* Cancel button on loading screen */
+.cancel-btn {
+  margin-top: 24px;
+  padding: 12px 32px;
+  background: transparent;
+  color: var(--color-brown);
+  border: 1px solid rgba(139, 69, 19, 0.3);
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.7;
+}
+
+.cancel-btn:hover {
+  opacity: 1;
+  border-color: rgba(139, 69, 19, 0.5);
+  background: rgba(139, 69, 19, 0.05);
+}
+
+.cancel-btn:active {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
 /* ============================================================================
    RESULT SCREEN
    ============================================================================ */

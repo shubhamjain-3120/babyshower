@@ -103,10 +103,32 @@ const generateLimiter = rateLimit({
 });
 
 // Middleware
-// Strip trailing slash from CORS origin to match browser's Origin header exactly
-const corsOrigin = process.env.CORS_ORIGIN?.replace(/\/+$/, "") || (isDevMode() ? '*' : 'https://your-domain.com');
+// CORS configuration - supports multiple origins for web + mobile apps
+const allowedOrigins = [
+  // Capacitor Android/iOS origins
+  'https://localhost',
+  'capacitor://localhost',
+  // Add origins from CORS_ORIGIN env var (comma-separated)
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim().replace(/\/+$/, '')) : []),
+];
+
 app.use(cors({
-  origin: corsOrigin,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    // In dev mode, allow all origins
+    if (isDevMode()) return callback(null, true);
+
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Log rejected origins for debugging
+    logger.warn(`CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));

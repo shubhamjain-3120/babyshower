@@ -40,22 +40,8 @@ export default defineConfig(({ mode }) => ({
               },
             },
           },
-          {
-            // Network First for API calls - try network, fall back to cache
-            urlPattern: /\/api\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 10,
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 5 * 60, // 5 minutes
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
+          // API calls are NOT cached - they go directly to the network
+          // This avoids timeout issues on Android WebView
         ],
         // Offline fallback - navigateFallback for SPA
         navigateFallback: '/index.html',

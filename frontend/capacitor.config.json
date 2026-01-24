@@ -3,6 +3,14 @@
   "appName": "Marwadi Vivah Invite Maker",
   "webDir": "dist",
   "server": {
-    "cleartext": false
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "https://marwadi-nyota.onrender.com/*",
+      "https://*.onrender.com/*"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false
   }
 }

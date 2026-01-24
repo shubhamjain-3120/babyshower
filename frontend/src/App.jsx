@@ -72,35 +72,100 @@ const INITIAL_RETRY_DELAY_MS = 1000;
  * Fetch with exponential backoff retry logic
  * Retries on network errors and 5xx server errors
  */
-async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
+async function fetchWithRetry(url, options, retries = MAX_RETRIES, signal = null) {
   let lastError;
-  
+
+  // Merge signal into options if provided
+  const fetchOptions = signal ? { ...options, signal } : options;
+
+  // DIAGNOSTIC: Log full request details
+  console.log("========== FETCH DEBUG START ==========");
+  console.log("[FETCH] URL:", url);
+  console.log("[FETCH] API_URL env var:", API_URL);
+  console.log("[FETCH] Full URL being called:", url);
+  console.log("[FETCH] Method:", options?.method || "GET");
+  console.log("[FETCH] Has body:", !!options?.body);
+  console.log("[FETCH] Navigator online:", navigator.onLine);
+  console.log("[FETCH] Window location:", window.location.href);
+  console.log("[FETCH] Window origin:", window.location.origin);
+
+  // Test basic connectivity
+  try {
+    const testUrl = "https://httpbin.org/get";
+    console.log("[FETCH] Testing basic connectivity to httpbin.org...");
+    const testResponse = await fetch(testUrl, { method: "GET", mode: "cors" });
+    console.log("[FETCH] Connectivity test result:", testResponse.status);
+  } catch (testErr) {
+    console.log("[FETCH] Connectivity test FAILED:", testErr.name, testErr.message);
+  }
+
   for (let attempt = 0; attempt < retries; attempt++) {
+    // Check if aborted before attempting
+    if (signal?.aborted) {
+      throw new DOMException('Request was cancelled', 'AbortError');
+    }
+
+    console.log(`[FETCH] Attempt ${attempt + 1}/${retries} starting...`);
+    const startTime = Date.now();
+
     try {
-      const response = await fetch(url, options);
-      
+      console.log("[FETCH] About to call fetch()...");
+      const response = await fetch(url, fetchOptions);
+      const elapsed = Date.now() - startTime;
+
+      console.log(`[FETCH] Response received in ${elapsed}ms`);
+      console.log("[FETCH] Status:", response.status);
+      console.log("[FETCH] Status Text:", response.statusText);
+      console.log("[FETCH] Response OK:", response.ok);
+      console.log("[FETCH] Response type:", response.type);
+      console.log("[FETCH] Response URL:", response.url);
+
+      // Log response headers
+      const headers = {};
+      response.headers.forEach((value, key) => { headers[key] = value; });
+      console.log("[FETCH] Response headers:", JSON.stringify(headers));
+
       // Don't retry client errors (4xx), only server errors (5xx)
       if (response.ok || (response.status >= 400 && response.status < 500)) {
+        console.log("[FETCH] Returning successful response");
+        console.log("========== FETCH DEBUG END ==========");
         return response;
       }
-      
+
       // Server error - will retry
       lastError = new Error(`Server error: ${response.status}`);
       logger.warn(`API attempt ${attempt + 1} failed with status ${response.status}`);
+      console.log("[FETCH] Server error, will retry...");
     } catch (err) {
+      const elapsed = Date.now() - startTime;
+      console.log(`[FETCH] EXCEPTION after ${elapsed}ms`);
+      console.log("[FETCH] Error name:", err.name);
+      console.log("[FETCH] Error message:", err.message);
+      console.log("[FETCH] Error stack:", err.stack);
+      console.log("[FETCH] Full error object:", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+
+      // If aborted, throw immediately without retry
+      if (err.name === 'AbortError') {
+        console.log("[FETCH] Request was aborted");
+        console.log("========== FETCH DEBUG END ==========");
+        throw err;
+      }
       // Network error - will retry
       lastError = err;
       logger.warn(`API attempt ${attempt + 1} failed: ${err.message}`);
     }
-    
+
     // Don't delay after the last attempt
     if (attempt < retries - 1) {
       const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+      console.log(`[FETCH] Retrying in ${delay}ms...`);
       logger.log(`Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
+
+  console.log("[FETCH] All retries exhausted, throwing error");
+  console.log("========== FETCH DEBUG END ==========");
   throw lastError;
 }
 
@@ -151,6 +216,9 @@ export default function App() {
   // Background music state
   const [isMusicPlaying, setIsMusicPlaying] = useState(true);
   const audioRef = useRef(null);
+
+  // AbortController for cancelling ongoing generation
+  const abortControllerRef = useRef(null);
 
   // NOTE: Background removal model preload has been DISABLED to prevent UI blocking.
   // The model will be loaded on-demand when the user generates an invite.
@@ -241,6 +309,10 @@ export default function App() {
   }, [screen]);
 
   const handleGenerate = useCallback(async (data) => {
+    // Create new AbortController for this generation
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     setFormData(data);
     setScreen(SCREENS.LOADING);
     setLoadingCompleted(false);
@@ -316,7 +388,7 @@ export default function App() {
           response = await fetchWithRetry(`${API_URL}/api/generate`, {
             method: "POST",
             body: apiFormData,
-          });
+          }, MAX_RETRIES, signal);
         } catch (apiError) {
           throw apiError;
         }
@@ -450,11 +522,35 @@ export default function App() {
       logger.log("Generation complete - all steps successful");
 
     } catch (err) {
+      // Don't show error for cancelled operations
+      if (err.name === 'AbortError') {
+        logger.log("Generation cancelled by user");
+        console.log("[App] Generation cancelled by user");
+        return;
+      }
       logger.error("Generation failed", err);
       console.error("[App] Generation error:", err);
       setError(err.message);
       setScreen(SCREENS.INPUT);
     }
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    // Abort any ongoing API requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    logger.log("User cancelled generation");
+    console.log("[App] User cancelled generation");
+
+    // Reset state and go back to input screen
+    setScreen(SCREENS.INPUT);
+    setFormData(null);
+    setFinalInvite(null);
+    setLoadingCompleted(false);
+    setError(null);
   }, []);
 
   const handleReset = useCallback(() => {
@@ -527,7 +623,7 @@ export default function App() {
       {screen === SCREENS.INPUT && (
         <InputScreen onGenerate={handleGenerate} error={error} />
       )}
-      {screen === SCREENS.LOADING && <LoadingScreen completed={loadingCompleted} />}
+      {screen === SCREENS.LOADING && <LoadingScreen completed={loadingCompleted} onCancel={handleCancel} />}
     </div>
   );
 }
