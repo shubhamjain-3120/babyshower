@@ -376,15 +376,11 @@ app.post(
         await fs.writeFile(characterPath, characterImage.buffer);
       }
 
-      // Video dimensions
-      const width = 1080;
-      const height = 1920;
+      // Video dimensions (reduced for lower memory usage)
+      const width = 720;
+      const height = 1280;
 
-      // Animation timings (in seconds)
-      const namesStart = 2.5, namesEnd = 3;
-      const dateStart = 3, dateEnd = 3.5;
-      const venueStart = 3.5, venueEnd = 4;
-      const charStart = 4, charEnd = 5;
+      // Text appears immediately (no fade animations for lower memory)
 
       // Character positioning (matching client-side layout)
       // Character takes 60% of height, centered horizontally
@@ -398,9 +394,9 @@ app.post(
       const dateY = Math.round(height * 0.875);
       const venueY = Math.round(height * 0.915);
 
-      // Font sizes
-      const namesFontSize = Math.round(54 * 3);
-      const textFontSize = Math.round(54 * 1.5);
+      // Font sizes (scaled for 720p)
+      const namesFontSize = Math.round(54 * 2);
+      const textFontSize = Math.round(54 * 1);
 
       // Escape special characters for FFmpeg drawtext
       const escapeText = (text) => text.replace(/'/g, "'\\''").replace(/:/g, "\\:");
@@ -410,43 +406,36 @@ app.post(
       const dateText = escapeText(date);
       const venueText = escapeText(venue);
 
-      // Build FFmpeg filter complex
+      // Build FFmpeg filter complex (no fades for lower memory usage)
       // Layer 1: Scale video to canvas size
-      // Layer 2: Overlay character image (with fade-in)
-      // Layer 3: Draw text overlays (with fade-in)
-let filterComplex = `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg];`;
+      // Layer 2: Overlay character image
+      // Layer 3: Draw text overlays
+let filterComplex = `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}[bg];`;
 
 if (characterImage) {
-  // Calculate duration because the 'fade' filter takes Duration (d), not End Time.
-  const fadeDuration = charEnd - charStart;
-
-  // 2. Apply Scale AND Fade to the character image
-  // 'format=rgba' ensures transparency works.
-  // 'st' is start time, 'd' is duration.
-  filterComplex += `[1:v]scale=-1:${charHeight},format=rgba,fade=t=in:st=${charStart}:d=${fadeDuration}:alpha=1[char];`;
-
-  // 3. Simple Overlay (No complex math here)
+  // Scale character image (no rgba conversion or fade needed)
+  filterComplex += `[1:v]scale=-1:${charHeight}[char];`;
   filterComplex += `[bg][char]overlay=(W-w)/2:${charY}[vid];`;
+} else {
+  filterComplex += `[bg]copy[vid];`;
+}
 
-} else {        filterComplex += `[bg]copy[vid];`;
-      }
-
-      // Add text overlays with fade-in
+      // Add text overlays (no fade animations)
       // Names text (gold color, script font)
-      filterComplex += `[vid]drawtext=fontfile='${GreatVibes}':text='${namesText}':fontsize=${namesFontSize}:fontcolor=0xD4A853:x=(w-text_w)/2:y=${namesY}:alpha='if(lt(t,${namesStart}),0,if(lt(t,${namesEnd}),(t-${namesStart})/(${namesEnd}-${namesStart}),1))'[v1];`;
+      filterComplex += `[vid]drawtext=fontfile='${GreatVibes}':text='${namesText}':fontsize=${namesFontSize}:fontcolor=0xD4A853:x=(w-text_w)/2:y=${namesY}[v1];`;
 
       // Date text (brown color, serif font)
-      filterComplex += `[v1]drawtext=fontfile='${playfairFont}':text='${dateText}':fontsize=${textFontSize}:fontcolor=0x8B7355:x=(w-text_w)/2:y=${dateY}:alpha='if(lt(t,${dateStart}),0,if(lt(t,${dateEnd}),(t-${dateStart})/(${dateEnd}-${dateStart}),1))'[v2];`;
+      filterComplex += `[v1]drawtext=fontfile='${playfairFont}':text='${dateText}':fontsize=${textFontSize}:fontcolor=0x8B7355:x=(w-text_w)/2:y=${dateY}[v2];`;
 
       // Venue text (brown color, serif font)
-      filterComplex += `[v2]drawtext=fontfile='${playfairFont}':text='${venueText}':fontsize=${textFontSize}:fontcolor=0x8B7355:x=(w-text_w)/2:y=${venueY}:alpha='if(lt(t,${venueStart}),0,if(lt(t,${venueEnd}),(t-${venueStart})/(${venueEnd}-${venueStart}),1))'[vout]`;
+      filterComplex += `[v2]drawtext=fontfile='${playfairFont}':text='${venueText}':fontsize=${textFontSize}:fontcolor=0x8B7355:x=(w-text_w)/2:y=${venueY}[vout]`;
 
       // Build FFmpeg command
       const inputs = characterImage
         ? `-i "${backgroundVideoPath}" -loop 1 -i "${characterPath}"`
         : `-i "${backgroundVideoPath}"`;
 
-      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k -movflags +faststart -pix_fmt yuv420p -shortest "${outputPath}"`;
+      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset ultrafast -threads 1 -crf 23 -c:a aac -b:a 128k -movflags +faststart -pix_fmt yuv420p -shortest "${outputPath}"`;
 
       logger.log(`[${requestId}] Running FFmpeg composition`, {
         command: ffmpegCmd.slice(0, 200) + "...",
