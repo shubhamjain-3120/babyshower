@@ -198,6 +198,13 @@ async function serverComposeVideo({ characterImage, brideName, groomName, date, 
 
     xhr.onload = () => {
       if (xhr.status === 200) {
+        // Defensive check: ensure response is video/mp4 before processing
+        const contentType = xhr.getResponseHeader("Content-Type");
+        if (!contentType || !contentType.includes("video/mp4")) {
+          logger.error("Server compose returned non-video response", { contentType });
+          reject(new Error("Server returned non-video response. Check API URL configuration."));
+          return;
+        }
         const totalTime = performance.now() - startTime;
         const mp4Blob = xhr.response;
         logger.log("Server-side video composition complete", {
@@ -215,7 +222,19 @@ async function serverComposeVideo({ characterImage, brideName, groomName, date, 
           const text = xhr.responseText;
           const errorData = JSON.parse(text);
           reject(new Error(errorData.error || "Server composition failed"));
-        } catch {
+        } catch (parseError) {
+          const rawResponse = xhr.responseText || "(empty response)";
+          const contentType = xhr.getResponseHeader("Content-Type") || "(not set)";
+          const contentLength = xhr.getResponseHeader("Content-Length") || "(not set)";
+          logger.error("Server compose response unparseable", {
+            status: xhr.status,
+            statusText: xhr.statusText,
+            contentType: contentType,
+            contentLength: contentLength,
+            responseLength: rawResponse.length,
+            firstChars: rawResponse.slice(0, 300),
+            parseError: parseError.message,
+          });
           reject(new Error("Server composition failed: unexpected response"));
         }
       }
@@ -1095,13 +1114,22 @@ function drawFrame(ctx, video, characterImg, characterBounds, brideName, groomNa
 /**
  * Compose a video invite with character and text overlays
  *
+ * ALWAYS uses server-side composition for consistent quality across all devices.
+ * This resolves Android jerkiness issues caused by device-dependent MediaRecorder behavior.
+ *
+ * Benefits of server-side composition:
+ * - Consistent quality across all devices (Android, iOS, desktop)
+ * - No frame drops or jerkiness from device CPU/GPU limitations
+ * - Smaller app bundle (no FFmpeg.wasm needed)
+ * - Precise frame timing using FFmpeg filter graphs
+ * - Full codec support via native FFmpeg
+ *
  * @param {Object} params
  * @param {string} params.characterImage - Data URL of character (with transparent bg)
  * @param {string} params.brideName
  * @param {string} params.groomName
  * @param {string} params.date
  * @param {string} params.venue
- * @param {boolean} params.forceServerConversion - Force server-side FFmpeg (dev mode)
  * @param {function} params.onProgress - Progress callback (0-100)
  * @returns {Promise<Blob>} - Video blob (MP4 format)
  */
@@ -1111,406 +1139,51 @@ export async function composeVideoInvite({
   groomName,
   date,
   venue,
-  forceServerConversion = false,
   onProgress = () => {}
 }) {
   const compositionStartTime = performance.now();
-  let stepTimings = {};
-  
-  // Reset animation state tracking for fresh logging
-  resetAnimationStates();
-  
-  // Get memory info if available (Chrome only)
-  const getMemoryInfo = () => {
-    if (performance.memory) {
-      return {
-        usedJSHeap: `${(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB`,
-        totalJSHeap: `${(performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(1)}MB`,
-        limit: `${(performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(1)}MB`,
-      };
-    }
-    return null;
-  };
-  
-  // Check if Chrome iOS - needs full server-side composition
-  // (MediaRecorder + canvas.captureStream() is broken on Chrome iOS)
-  const needsServerComposition = isChromeIOS();
 
-  // Detect if we'll use server-side conversion (for progress calculations)
-  // Use server if: FFmpeg not supported OR forceServerConversion flag is set (dev mode)
-  const useServerConversion = forceServerConversion || !isFFmpegSupported();
-
-  logger.log("=== VIDEO COMPOSITION STARTED ===", {
+  logger.log("=== VIDEO COMPOSITION STARTED (SERVER-SIDE) ===", {
     brideName,
     groomName,
     date,
     venue,
     characterImageSize: characterImage ? `${(characterImage.length / 1024).toFixed(1)}KB` : 'N/A',
-    conversionMode: useServerConversion ? "server" : "client",
-    needsServerComposition,
-    isChromeIOS: isChromeIOS(),
-    forceServerConversion,
-    ffmpegSupported: isFFmpegSupported(),
     timestamp: new Date().toISOString(),
-    memory: getMemoryInfo(),
+    userAgent: navigator.userAgent.slice(0, 100),
   });
 
   onProgress(5);
 
-  // Chrome iOS: Use full server-side composition
-  // Client-side MediaRecorder/canvas.captureStream() is broken on Chrome iOS
-  if (needsServerComposition) {
-    logger.log("Using server-side video composition (Chrome iOS detected)");
-    try {
-      const mp4Blob = await serverComposeVideo({
-        characterImage,
-        brideName,
-        groomName,
-        date,
-        venue,
-        onProgress,
-      });
-
-      const totalTime = performance.now() - compositionStartTime;
-      logger.log("=== VIDEO COMPOSITION COMPLETE (SERVER) ===", {
-        totalTime: `${totalTime.toFixed(0)}ms`,
-        outputSize: `${(mp4Blob.size / 1024 / 1024).toFixed(2)} MB`,
-      });
-
-      return mp4Blob;
-    } catch (error) {
-      logger.error("Server-side composition failed", error);
-      throw error;
-    }
-  }
-
+  // Always use server-side composition for consistent quality across all devices
+  // This resolves Android jerkiness issues caused by:
+  // - MediaRecorder API inconsistencies across Android devices
+  // - Canvas capture frame drops on lower-end devices
+  // - WebM codec variations across browsers
+  // - Memory pressure from FFmpeg.wasm + canvas recording
   try {
-    // Step 1: Load fonts
-    logger.log("Step 1/8: Loading fonts");
-    const fontStartTime = performance.now();
-    await loadFonts();
-    stepTimings.fonts = performance.now() - fontStartTime;
-    logger.log("Step 1/8 complete", { duration: `${stepTimings.fonts.toFixed(0)}ms` });
-    onProgress(10);
-    
-    // Step 2: Load assets in parallel
-    logger.log("Step 2/8: Loading video and character assets");
-    const assetStartTime = performance.now();
-    const [video, characterImg] = await Promise.all([
-      loadVideo("/assets/background.mp4"),
-      loadImage(characterImage),
-    ]);
-    stepTimings.assets = performance.now() - assetStartTime;
-    
-    logger.log("Step 2/8 complete: Assets loaded", {
-      duration: `${stepTimings.assets.toFixed(0)}ms`,
-      video: {
-        dimensions: `${video.videoWidth}x${video.videoHeight}`,
-        duration: `${video.duration.toFixed(2)}s`,
-        aspectRatio: (video.videoWidth / video.videoHeight).toFixed(2),
-      },
-      character: {
-        dimensions: `${characterImg.width}x${characterImg.height}`,
-        aspectRatio: (characterImg.width / characterImg.height).toFixed(2),
-      },
-      memory: getMemoryInfo(),
+    const mp4Blob = await serverComposeVideo({
+      characterImage,
+      brideName,
+      groomName,
+      date,
+      venue,
+      onProgress,
     });
-    onProgress(20);
-    
-    // Step 3: Calculate character bounds
-    logger.log("Step 3/8: Calculating character placement");
-    const characterBounds = calculateCharacterBounds(characterImg);
-    logger.log("Step 3/8 complete: Character bounds", {
-      position: `(${characterBounds.x.toFixed(0)}, ${characterBounds.y.toFixed(0)})`,
-      size: `${characterBounds.width.toFixed(0)}x${characterBounds.height.toFixed(0)}`,
-      feetY: characterBounds.feetY.toFixed(0),
-    });
-    
-    // Step 4: Setup canvas and media recording
-    logger.log("Step 4/8: Setting up canvas and MediaRecorder");
-    const setupStartTime = performance.now();
-    
-    const canvas = document.createElement("canvas");
-    canvas.width = CANVAS_WIDTH;
-    canvas.height = CANVAS_HEIGHT;
-    const ctx = canvas.getContext("2d");
-    logger.log("Canvas created", { dimensions: `${CANVAS_WIDTH}x${CANVAS_HEIGHT}` });
-    
-    // Setup MediaRecorder for video capture
-    const targetFPS = 30;
-    const canvasStream = canvas.captureStream(targetFPS);
-    logger.log("Canvas stream created", { fps: targetFPS });
-    
-    // Create audio context to capture audio from the source video
-    logger.log("Setting up audio capture");
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaElementSource(video);
-    const destination = audioContext.createMediaStreamDestination();
-    source.connect(destination);
-    logger.log("Audio context configured", { 
-      sampleRate: audioContext.sampleRate,
-      state: audioContext.state 
-    });
-    
-    // Combine canvas video stream with audio stream
-    const combinedStream = new MediaStream([
-      ...canvasStream.getVideoTracks(),
-      ...destination.stream.getAudioTracks()
-    ]);
-    logger.log("Combined stream created", {
-      videoTracks: combinedStream.getVideoTracks().length,
-      audioTracks: combinedStream.getAudioTracks().length,
-    });
-    
-    // Detect best supported codec
-    const codecOptions = [
-      'video/webm;codecs=h264,opus',
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-    ];
-    let mimeType = 'video/webm;codecs=vp8,opus';
-    for (const codec of codecOptions) {
-      if (MediaRecorder.isTypeSupported(codec)) {
-        mimeType = codec;
-        break;
-      }
-    }
-    
-    const videoBitrate = 4000000; // 4 Mbps (optimized - same perceived quality, faster processing)
-    const audioBitrate = 96000;   // 96 kbps (sufficient for this use case)
-    
-    const mediaRecorder = new MediaRecorder(combinedStream, {
-      mimeType,
-      videoBitsPerSecond: videoBitrate,
-      audioBitsPerSecond: audioBitrate,
-    });
-    
-    stepTimings.setup = performance.now() - setupStartTime;
-    logger.log("Step 4/8 complete: MediaRecorder configured", {
-      duration: `${stepTimings.setup.toFixed(0)}ms`,
-      mimeType,
-      videoBitrate: `${(videoBitrate / 1000000).toFixed(1)} Mbps`,
-      audioBitrate: `${(audioBitrate / 1000)} kbps`,
-    });
-    
-    const chunks = [];
-    let chunkCount = 0;
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        chunks.push(e.data);
-        chunkCount++;
-        if (chunkCount % 10 === 0) {
-          const totalSize = chunks.reduce((sum, c) => sum + c.size, 0);
-          logger.log("Recording data chunk", { 
-            chunkCount, 
-            totalSize: `${(totalSize / 1024 / 1024).toFixed(2)}MB` 
-          });
-        }
-      }
-    };
-    
-    mediaRecorder.onerror = (e) => {
-      logger.error("MediaRecorder error", {
-        error: e.error?.message || 'Unknown error',
-        name: e.error?.name,
-      });
-    };
-    
-    mediaRecorder.onwarning = (e) => {
-      logger.warn("MediaRecorder warning", e.message || 'Unknown warning');
-    };
-    
-    // Create promise for recording completion
-    const recordingComplete = new Promise((resolve) => {
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        logger.log("Recording stopped, blob created", { 
-          chunks: chunks.length,
-          size: `${(blob.size / 1024 / 1024).toFixed(2)}MB`,
-          state: mediaRecorder.state,
-        });
-        resolve(blob);
-      };
-    });
-    
-    // Step 5: Start recording and playback
-    logger.log("Step 5/8: Starting recording");
-    const recordingStartTime = performance.now();
-    
-    mediaRecorder.start(1000); // Request data every 1 second
-    logger.log("MediaRecorder started", { timeslice: "1000ms" });
-    
-    // Play video and render frames
-    video.currentTime = 0;
-    await new Promise((resolve) => {
-      video.onseeked = resolve;
-    });
-    logger.log("Video seeked to start");
-    
-    // Step 6: Render frames
-    logger.log("Step 6/8: Rendering frames", {
-      targetDuration: `${video.duration.toFixed(2)}s`,
-      targetFPS,
-      canvasDimensions: `${CANVAS_WIDTH}x${CANVAS_HEIGHT}`,
-    });
-    const videoDuration = video.duration;
-    let lastProgressUpdate = 20;
-    let frameCount = 0;
-    let lastFrameLogTime = 0;
-    let renderStartTime = null;
-    let lastFpsCheckTime = 0;
-    let framesSinceLastCheck = 0;
-    
-    await new Promise((resolve) => {
-      const renderLoop = () => {
-        if (renderStartTime === null) {
-          renderStartTime = performance.now();
-        }
-        
-        if (video.ended || video.currentTime >= videoDuration) {
-          const totalRenderTime = performance.now() - renderStartTime;
-          logger.log("Render loop complete", { 
-            totalFrames: frameCount,
-            videoDuration: `${videoDuration.toFixed(2)}s`,
-            actualRenderTime: `${totalRenderTime.toFixed(0)}ms`,
-            avgFPS: (frameCount / (totalRenderTime / 1000)).toFixed(1),
-            playbackSpeed: `${(videoDuration / (totalRenderTime / 1000)).toFixed(2)}x`,
-            memory: getMemoryInfo(),
-          });
-          resolve();
-          return;
-        }
-        
-        // Draw current frame with animation timing based on video.currentTime
-        drawFrame(ctx, video, characterImg, characterBounds, brideName, groomName, date, venue, video.currentTime);
-        frameCount++;
-        framesSinceLastCheck++;
-        
-        // Calculate real-time FPS every second
-        const now = performance.now();
-        if (now - lastFpsCheckTime >= 1000) {
-          const realtimeFPS = framesSinceLastCheck / ((now - lastFpsCheckTime) / 1000);
-          if (video.currentTime > 0) {
-            logger.log("Real-time FPS", {
-              fps: realtimeFPS.toFixed(1),
-              videoTime: `${video.currentTime.toFixed(1)}s`,
-            });
-          }
-          lastFpsCheckTime = now;
-          framesSinceLastCheck = 0;
-        }
-        
-        // Log frame progress every 5 seconds of video time
-        if (video.currentTime - lastFrameLogTime >= 5) {
-          logger.log("Frame rendering progress", {
-            videoTime: `${video.currentTime.toFixed(1)}s`,
-            frames: frameCount,
-            progress: `${((video.currentTime / videoDuration) * 100).toFixed(1)}%`,
-            elapsedReal: `${((performance.now() - renderStartTime) / 1000).toFixed(1)}s`,
-          });
-          lastFrameLogTime = video.currentTime;
-        }
-        
-        // Update progress during rendering
-        // Server mode: 20% to 70% (leaves room for upload/conversion)
-        // Client mode: 20% to 85% (FFmpeg conversion is faster)
-        const progressRange = useServerConversion ? 50 : 65;
-        const renderProgress = 20 + (video.currentTime / videoDuration) * progressRange;
-        if (renderProgress - lastProgressUpdate >= 2) {
-          onProgress(Math.round(renderProgress));
-          lastProgressUpdate = renderProgress;
-        }
-        
-        requestAnimationFrame(renderLoop);
-      };
-      
-      video.onended = resolve;
-      logger.log("Starting video playback");
-      lastFpsCheckTime = performance.now();
-      video.play();
-      renderLoop();
-    });
-    
-    stepTimings.recording = performance.now() - recordingStartTime;
-    logger.log("Step 6/8 complete: Rendering finished", {
-      duration: `${stepTimings.recording.toFixed(0)}ms`,
-      frames: frameCount
-    });
-    // Set progress to end of rendering range
-    onProgress(useServerConversion ? 70 : 85);
-    
-    // Step 7: Finalize recording
-    logger.log("Step 7/8: Finalizing recording");
-    const finalizeStartTime = performance.now();
-    
-    mediaRecorder.stop();
-    logger.log("MediaRecorder stop requested");
-    
-    const webmBlob = await recordingComplete;
-    
-    // Cleanup audio context
-    await audioContext.close();
-    logger.log("Audio context closed");
-    
-    stepTimings.finalize = performance.now() - finalizeStartTime;
-    logger.log("Step 7/8 complete: Recording finalized", { 
-      duration: `${stepTimings.finalize.toFixed(0)}ms`,
-      webmSize: `${(webmBlob.size / 1024 / 1024).toFixed(2)}MB` 
-    });
-    
-    // Step 8: Convert WebM to MP4 for QuickTime/iOS compatibility
-    const conversionMethod = useServerConversion ? "server-side FFmpeg" : "FFmpeg.wasm";
-    logger.log(`Step 8/8: Converting WebM to MP4 using ${conversionMethod}`);
-    const conversionStartTime = performance.now();
 
-    let mp4Blob;
-    try {
-      mp4Blob = await convertWebMToMP4(webmBlob, onProgress, useServerConversion);
-      stepTimings.conversion = performance.now() - conversionStartTime;
-
-      logger.log("Step 8/8 complete: MP4 conversion finished", {
-        duration: `${stepTimings.conversion.toFixed(0)}ms`,
-        outputSize: `${(mp4Blob.size / 1024 / 1024).toFixed(2)}MB`,
-        method: conversionMethod,
-      });
-    } catch (conversionError) {
-      logger.warn("MP4 conversion failed, falling back to WebM", conversionError.message);
-      mp4Blob = webmBlob; // Fallback to WebM if conversion fails
-    }
-    
-    onProgress(100);
-    
-    // Final summary
     const totalTime = performance.now() - compositionStartTime;
-    logger.log("=== VIDEO COMPOSITION COMPLETE ===", {
-      totalDuration: `${totalTime.toFixed(0)}ms`,
-      totalDurationHuman: `${(totalTime / 1000).toFixed(1)}s`,
-      conversionMode: useServerConversion ? "server" : "client",
-      output: {
-        size: `${(mp4Blob.size / 1024 / 1024).toFixed(2)}MB`,
-        type: mp4Blob.type,
-      },
-      stepTimings: {
-        fonts: `${stepTimings.fonts?.toFixed(0) || 'N/A'}ms`,
-        assets: `${stepTimings.assets?.toFixed(0) || 'N/A'}ms`,
-        setup: `${stepTimings.setup?.toFixed(0) || 'N/A'}ms`,
-        recording: `${stepTimings.recording?.toFixed(0) || 'N/A'}ms`,
-        finalize: `${stepTimings.finalize?.toFixed(0) || 'N/A'}ms`,
-        conversion: `${stepTimings.conversion?.toFixed(0) || 'N/A'}ms`,
-      },
-      timestamp: new Date().toISOString(),
-      memory: getMemoryInfo(),
+    logger.log("=== VIDEO COMPOSITION COMPLETE (SERVER) ===", {
+      totalTime: `${totalTime.toFixed(0)}ms`,
+      totalTimeHuman: `${(totalTime / 1000).toFixed(1)}s`,
+      outputSize: `${(mp4Blob.size / 1024 / 1024).toFixed(2)} MB`,
     });
-    
+
     return mp4Blob;
-    
   } catch (error) {
     const failTime = performance.now() - compositionStartTime;
     logger.error("=== VIDEO COMPOSITION FAILED ===", {
       error: error.message,
-      stack: error.stack?.slice(0, 500),
       failedAfter: `${failTime.toFixed(0)}ms`,
-      stepTimings,
     });
     throw error;
   }

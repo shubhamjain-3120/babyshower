@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
 import InputScreen from "./components/InputScreen";
 import LoadingScreen from "./components/LoadingScreen";
-import { composeVideoInvite, preloadFFmpeg } from "./utils/videoComposer";
+import { composeVideoInvite } from "./utils/videoComposer";
 import { removeImageBackground, dataURLToBlob } from "./utils/backgroundRemoval";
 import { createDevLogger } from "./utils/devLogger";
 import { incrementGenerationCount } from "./utils/rateLimit";
@@ -240,14 +240,6 @@ export default function App() {
     }
   }, [screen]);
 
-  // Preload FFmpeg when user is on input screen (while they fill the form)
-  // This saves 5-10 seconds during video generation
-  useEffect(() => {
-    if (screen === SCREENS.INPUT || screen === SCREENS.ONBOARDING) {
-      preloadFFmpeg();
-    }
-  }, [screen]);
-
   const handleGenerate = useCallback(async (data) => {
     setFormData(data);
     setScreen(SCREENS.LOADING);
@@ -264,7 +256,7 @@ export default function App() {
       skipImageGeneration: data.skipImageGeneration,
       skipBackgroundRemoval: data.skipBackgroundRemoval,
       skipVideoGeneration: data.skipVideoGeneration,
-      forceServerConversion: data.forceServerConversion,
+      videoComposition: "server-side", // Always use server for consistent quality
     });
 
     try {
@@ -335,6 +327,11 @@ export default function App() {
           duration: `${(performance.now() - startApiCall).toFixed(0)}ms`,
         });
 
+        // Defensive check: ensure response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server returned non-JSON response. Check API URL configuration.');
+        }
         const result = await response.json();
 
         if (!result.success) {
@@ -393,17 +390,16 @@ export default function App() {
           imageSize: `${(videoBlob?.size / 1024).toFixed(1)} KB`,
         });
       } else {
-        logger.log("Step 3: Starting video composition", {
+        logger.log("Step 3: Starting video composition (server-side)", {
           brideName: data.brideName,
           groomName: data.groomName,
           date: data.date,
           venue: data.venue,
           characterImageLength: characterImage?.length,
-          forceServerConversion: data.forceServerConversion,
         });
-        console.log("[App] Composing video invite...");
+        console.log("[App] Composing video invite (server-side)...");
 
-        // Compose final invite as video with character overlay
+        // Compose final invite as video with character overlay (always server-side)
         const startVideoCompose = performance.now();
         let lastLoggedProgress = 0;
         videoBlob = await composeVideoInvite({
@@ -412,7 +408,6 @@ export default function App() {
           groomName: data.groomName,
           date: data.date,
           venue: data.venue,
-          forceServerConversion: data.forceServerConversion,
           onProgress: (progress) => {
             // Only log at key milestones (every 20%) to reduce noise
             if (progress >= lastLoggedProgress + 20 || progress === 100) {

@@ -410,14 +410,21 @@ app.post(
       // Layer 1: Scale video to canvas size
       // Layer 2: Overlay character image (with fade-in)
       // Layer 3: Draw text overlays (with fade-in)
-      let filterComplex = `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}[bg];`;
+let filterComplex = `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg];`;
 
-      if (characterImage) {
-        // Add character overlay with fade-in
-        filterComplex += `[1:v]scale=-1:${charHeight}[char];`;
-        filterComplex += `[bg][char]overlay=(W-w)/2:${charY}:enable='gte(t,${charStart})':alpha='if(lt(t,${charStart}),0,if(lt(t,${charEnd}),(t-${charStart})/(${charEnd}-${charStart}),1))'[vid];`;
-      } else {
-        filterComplex += `[bg]copy[vid];`;
+if (characterImage) {
+  // Calculate duration because the 'fade' filter takes Duration (d), not End Time.
+  const fadeDuration = charEnd - charStart;
+
+  // 2. Apply Scale AND Fade to the character image
+  // 'format=rgba' ensures transparency works.
+  // 'st' is start time, 'd' is duration.
+  filterComplex += `[1:v]scale=-1:${charHeight},format=rgba,fade=t=in:st=${charStart}:d=${fadeDuration}:alpha=1[char];`;
+
+  // 3. Simple Overlay (No complex math here)
+  filterComplex += `[bg][char]overlay=(W-w)/2:${charY}[vid];`;
+
+} else {        filterComplex += `[bg]copy[vid];`;
       }
 
       // Add text overlays with fade-in
@@ -432,10 +439,10 @@ app.post(
 
       // Build FFmpeg command
       const inputs = characterImage
-        ? `-i "${backgroundVideoPath}" -i "${characterPath}"`
+        ? `-i "${backgroundVideoPath}" -loop 1 -i "${characterPath}"`
         : `-i "${backgroundVideoPath}"`;
 
-      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k -movflags +faststart -pix_fmt yuv420p "${outputPath}"`;
+      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k -movflags +faststart -pix_fmt yuv420p -shortest "${outputPath}"`;
 
       logger.log(`[${requestId}] Running FFmpeg composition`, {
         command: ffmpegCmd.slice(0, 200) + "...",

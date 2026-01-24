@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:analyze": "vite build && npx vite-bundle-visualizer",
+    "build:apk": "VITE_API_URL=https://marwadi-nyota.onrender.com npm run build && npx cap sync android",
     "preview": "vite preview"
   },
   "dependencies": {

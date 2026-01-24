@@ -1,5 +1,8 @@
 {
 	"appId": "com.modulus.marwadivivah",
 	"appName": "Marwadi Vivah Invite Maker",
-	"webDir": "dist"
+	"webDir": "dist",
+	"server": {
+		"cleartext": false
+	}
 }
