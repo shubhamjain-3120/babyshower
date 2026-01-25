@@ -87,7 +87,12 @@ export default function InputScreen({
   onGenerate,
   error,
   photo,              // Passed from App (from PhotoUploadScreen)
+  onBack,             // Back navigation handler
 }) {
+  // Confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [validatedFormData, setValidatedFormData] = useState(null);
+
   // Rate limit state
   const [rateLimit, setRateLimit] = useState(() => getRateLimitState());
   
@@ -193,7 +198,7 @@ export default function InputScreen({
       forceServerConversion: devMode ? forceServerConversion : false,
     };
 
-    logger.log("Form validation passed, calling onGenerate", {
+    logger.log("Form validation passed, showing confirmation modal", {
       brideName: formData.brideName,
       groomName: formData.groomName,
       date: formData.date,
@@ -208,12 +213,76 @@ export default function InputScreen({
     });
 
     trackClick('generate_submit', { dev_mode: devMode });
-    onGenerate(formData);
+
+    // Show confirmation modal instead of directly calling onGenerate
+    setValidatedFormData(formData);
+    setShowConfirmModal(true);
   };
 
   return (
     <div className="input-screen">
       {error && <div className="error-banner">{error}</div>}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && validatedFormData && (
+        <div className="confirmation-modal-overlay">
+          <div className="confirmation-modal">
+            {/* Header */}
+            <h2 className="modal-header">
+              कृपया विवरण की पुष्टि करें
+              <span className="modal-header-english">(Please Confirm Details)</span>
+            </h2>
+
+            {/* Photo Preview */}
+            <div className="modal-photo-container">
+              <img src={URL.createObjectURL(photo)} alt="Couple photo" />
+              <p className="modal-label">फोटो (Photo)</p>
+            </div>
+
+            {/* Details */}
+            <div className="modal-details">
+              <div className="modal-detail-item">
+                <span className="modal-detail-label">दूल्हे का नाम (Groom's Name):</span>
+                <span className="modal-detail-value">{validatedFormData.groomName}</span>
+              </div>
+              <div className="modal-detail-item">
+                <span className="modal-detail-label">दुल्हन का नाम (Bride's Name):</span>
+                <span className="modal-detail-value">{validatedFormData.brideName}</span>
+              </div>
+              <div className="modal-detail-item">
+                <span className="modal-detail-label">शादी की तारीख (Wedding Date):</span>
+                <span className="modal-detail-value">{validatedFormData.date}</span>
+              </div>
+              <div className="modal-detail-item">
+                <span className="modal-detail-label">स्थान (Venue):</span>
+                <span className="modal-detail-value">{validatedFormData.venue}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="modal-actions">
+              <button
+                className="modal-btn modal-btn-proceed"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  onGenerate(validatedFormData);
+                }}
+              >
+                आगे बढ़ें (Proceed)
+              </button>
+              <button
+                className="modal-btn modal-btn-edit"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setValidatedFormData(null);
+                }}
+              >
+                संपादित करें (Edit Details)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero headline */}
       <div className="hero-container" style={{ marginBottom: '20px' }}>
@@ -437,7 +506,18 @@ export default function InputScreen({
         >
           {devMode ? "Generate Invite (Dev Mode)" : "Generate Invite (निमंत्रण बनाएं)"}
         </button>
-        
+
+        {/* Go Back Button */}
+        {onBack && (
+          <button
+            type="button"
+            className="go-back-btn"
+            onClick={onBack}
+          >
+            Go Back (वापस जाएं)
+          </button>
+        )}
+
         {/* Rate limit info */}
         {!devMode && (
           <div className={`rate-limit-info ${rateLimit.remaining <= 2 ? 'rate-limit-warning' : ''}`}>

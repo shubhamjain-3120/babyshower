@@ -10,16 +10,67 @@ import { trackPageView } from "../utils/analytics";
  * - 98-100%: Wait for actual process completion, then jump to 100% immediately
  */
 
+const TRIVIA_MESSAGES = [
+  {
+    mrw: "असली बजट टेस्ट वेन्यू कोनी, मिठाई रो काउंटर है।",
+    en: "The real budget test isn't the venue, it's the मिठाई counter.",
+  },
+  {
+    mrw: "मेहमानां ने वचनां सूं ज़्यादा खाना याद रह जावे।",
+    en: "Guests remember the food longer than the vows.",
+  },
+  {
+    mrw: "थारी थाली में घी कोनी है तो समझ जा, शादी गलत है।",
+    en: "If there's no ghee on your plate, you're probably at the wrong wedding.",
+  },
+  {
+    mrw: "कोई भूखो कोनी जावे, पर कई तो सीधो चाल भी कोनी पावे।",
+    en: "No one leaves hungry, some leave unable to walk properly.",
+  },
+  {
+    mrw: "मारवाड़ी शादी में डाइट प्लानां री छुट्टी हो जावे।",
+    en: "In a Marwadi wedding, diet plans are officially suspended.",
+  },
+  {
+    mrw: "सब सूं लंबी लाइन दूल्हा-दुल्हन री कोनी, मिठाई री होवे।",
+    en: "The longest queue isn't for the couple, it's for the dessert.",
+  },
+  {
+    mrw: "मारवाड़ी शादी में थाली खाली कोनी होवे, बस रीफिलां रा बीच होवे।",
+    en: "At Marwadi weddings, plates are never truly empty — only between refills.",
+  },
+  {
+    mrw: "लोग आशीर्वाद देण आवे, पण रुक्के नाश्ते खातर।",
+    en: "People come for blessings, stay for the snacks.",
+  }
+];
+
 export default function LoadingScreen({ completed = false, onCancel }) {
   const [progress, setProgress] = useState(0);
+  const [triviaIndex, setTriviaIndex] = useState(0);
+  const [isCompleting, setIsCompleting] = useState(false);
   const progressTimeoutRef = useRef(null);
+  const triviaIntervalRef = useRef(null);
 
   // Track page view on mount
   useEffect(() => {
     trackPageView('loading');
   }, []);
 
-  // Jump to 100% when completed prop becomes true
+  // Rotate trivia every 5 seconds
+  useEffect(() => {
+    triviaIntervalRef.current = setInterval(() => {
+      setTriviaIndex((prev) => (prev + 1) % TRIVIA_MESSAGES.length);
+    }, 5000);
+
+    return () => {
+      if (triviaIntervalRef.current) {
+        clearInterval(triviaIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Smoothly transition to 100% when completed prop becomes true
   useEffect(() => {
     if (completed && progress < 100) {
       // Clear any pending timeouts
@@ -27,6 +78,7 @@ export default function LoadingScreen({ completed = false, onCancel }) {
         clearTimeout(progressTimeoutRef.current);
         progressTimeoutRef.current = null;
       }
+      setIsCompleting(true);
       setProgress(100);
     }
   }, [completed, progress]);
@@ -91,16 +143,17 @@ export default function LoadingScreen({ completed = false, onCancel }) {
         <div className="progress-container">
           <div className="progress-bar">
             <div
-              className="progress-fill"
+              className={`progress-fill ${isCompleting ? 'completing' : ''}`}
               style={{ width: `${progress}%` }}
             />
           </div>
           <span className="progress-text">{Math.round(progress)}%</span>
         </div>
 
-        <p className="loading-subtext">
-          Creating your beautiful wedding invite...
-        </p>
+        <div className="loading-trivia">
+          <p className="trivia-primary">{TRIVIA_MESSAGES[triviaIndex].mrw}</p>
+          <p className="trivia-secondary">{TRIVIA_MESSAGES[triviaIndex].en}</p>
+        </div>
 
         {/* Cancel button */}
         {onCancel && (

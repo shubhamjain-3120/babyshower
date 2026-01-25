@@ -217,62 +217,17 @@ export default function App() {
   // This makes the page fully responsive at all times.
   // The trade-off is the first generation will take ~30-40 seconds longer.
 
-  // Initialize and play background music on app load
+  // Initialize background music (audio instance only)
   useEffect(() => {
     const audio = new Audio("/assets/bg_audio.mp3");
     audio.loop = true;
-    audio.volume = 0.05; // 10% volume
+    audio.volume = 0.05; // 5% volume
     audioRef.current = audio;
-    
-    let interactionListenerAdded = false;
-    
-    // Handler to play audio on first user interaction
-    const playOnInteraction = async () => {
-      if (audioRef.current && audioRef.current.paused) {
-        try {
-          await audioRef.current.play();
-          setIsMusicPlaying(true);
-          console.log("[App] Music started after user interaction");
-        } catch (err) {
-          console.log("[App] Could not play audio:", err.message);
-        }
-      }
-      // Remove listeners after first successful interaction
-      document.removeEventListener("click", playOnInteraction);
-      document.removeEventListener("touchstart", playOnInteraction);
-      document.removeEventListener("keydown", playOnInteraction);
-      interactionListenerAdded = false;
-    };
-    
-    // Try to play audio (may be blocked by browser autoplay policy)
-    const playAudio = async () => {
-      try {
-        await audio.play();
-        setIsMusicPlaying(true);
-        console.log("[App] Autoplay successful");
-      } catch (err) {
-        // Autoplay was blocked - add listeners to play on first interaction
-        console.log("[App] Autoplay blocked, waiting for user interaction");
-        // Keep isMusicPlaying true so the icon shows speaker on (desired state)
-        // Music will start on first interaction
-        document.addEventListener("click", playOnInteraction);
-        document.addEventListener("touchstart", playOnInteraction);
-        document.addEventListener("keydown", playOnInteraction);
-        interactionListenerAdded = true;
-      }
-    };
-    
-    playAudio();
-    
+
     // Cleanup on unmount
     return () => {
       audio.pause();
       audio.src = "";
-      if (interactionListenerAdded) {
-        document.removeEventListener("click", playOnInteraction);
-        document.removeEventListener("touchstart", playOnInteraction);
-        document.removeEventListener("keydown", playOnInteraction);
-      }
     };
   }, []);
 
@@ -291,12 +246,24 @@ export default function App() {
     }
   }, [isMusicPlaying]);
 
-  // Stop background music when reaching result screen (video has its own audio)
+  // Play background music only on loading screen
   useEffect(() => {
-    if (screen === SCREENS.RESULT && audioRef.current) {
+    if (!audioRef.current) return;
+
+    if (screen === SCREENS.LOADING) {
+      // Start playing audio on loading screen
+      audioRef.current.play().catch((err) => {
+        console.log("[App] Could not play audio:", err.message);
+        setIsMusicPlaying(false);
+      });
+      setIsMusicPlaying(true);
+      console.log("[App] Started background music for loading screen");
+    } else {
+      // Stop audio on all other screens
       audioRef.current.pause();
+      audioRef.current.currentTime = 0; // Reset to start
       setIsMusicPlaying(false);
-      console.log("[App] Stopped background music for result screen");
+      console.log("[App] Stopped background music (not on loading screen)");
     }
   }, [screen]);
 
@@ -706,20 +673,9 @@ export default function App() {
         </div>
       )}
       
-      {/* App Header - Back button, Logo and Sound Button aligned at top */}
+      {/* App Header - Logo and Sound Button aligned at top */}
       <header className="app-header">
         <div className="app-header-left">
-          {/* Show back button on all screens except sample video and loading */}
-          {screen !== SCREENS.SAMPLE_VIDEO && screen !== SCREENS.LOADING && (
-            <button
-              className="back-btn"
-              onClick={handleBack}
-              aria-label="Go back"
-              title="Go back"
-            >
-              <BackArrowIcon />
-            </button>
-          )}
           <div className="app-header-logo">
             <img
               src="/assets/app-logo.png"
@@ -733,14 +689,17 @@ export default function App() {
           <p>मारवाड़ी कूकू पत्रिका बनाएं</p>
         </div>
         <div className="app-header-actions">
-          <button
-            className="music-toggle-btn"
-            onClick={toggleMusic}
-            aria-label={isMusicPlaying ? "Mute background music" : "Play background music"}
-            title={isMusicPlaying ? "Mute music" : "Play music"}
-          >
-            {isMusicPlaying ? <SpeakerOnIcon /> : <SpeakerOffIcon />}
-          </button>
+          {/* Show music toggle only on loading screen */}
+          {screen === SCREENS.LOADING && (
+            <button
+              className="music-toggle-btn"
+              onClick={toggleMusic}
+              aria-label={isMusicPlaying ? "Mute background music" : "Play background music"}
+              title={isMusicPlaying ? "Mute music" : "Play music"}
+            >
+              {isMusicPlaying ? <SpeakerOnIcon /> : <SpeakerOffIcon />}
+            </button>
+          )}
         </div>
       </header>
 
@@ -763,6 +722,7 @@ export default function App() {
           onGenerate={handleGenerate}
           error={error}
           photo={uploadedPhoto}
+          onBack={() => setScreen(SCREENS.PHOTO_UPLOAD)}
         />
       )}
 

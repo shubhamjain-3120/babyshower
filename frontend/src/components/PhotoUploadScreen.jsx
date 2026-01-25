@@ -41,6 +41,7 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
   const [extractionState, setExtractionState] = useState({ status: 'idle', descriptions: null, error: null });
   const [extractionProgress, setExtractionProgress] = useState(0);
   const extractionProgressIntervalRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   // Track page view on mount
   useEffect(() => {
@@ -107,11 +108,15 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
     // Note: apiUrl can be empty string in dev mode (uses Vite proxy), so only check for undefined
     if (!photo || apiUrl === undefined) return;
 
+    // Create new AbortController for this extraction
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     const extractPhoto = async () => {
       // Reset progress
       setExtractionProgress(0);
       setExtractionState({ status: 'uploading', descriptions: null, error: null });
-      
+
       logger.log("[EXTRACTION] Step 1: Preparing photo for extraction", {
         photoSize: `${(photo.size / 1024).toFixed(1)} KB`,
         photoType: photo.type,
@@ -129,6 +134,7 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
         const response = await fetch(`${apiUrl}/api/extract`, {
           method: "POST",
           body: formData,
+          signal, // Add signal for cancellation
         });
 
         logger.log("[EXTRACTION] Step 3: Response received from backend", {
@@ -172,6 +178,13 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
           });
         }
       } catch (error) {
+        // Don't show error for cancelled operations
+        if (error.name === 'AbortError') {
+          logger.log("[EXTRACTION] Extraction cancelled by user");
+          console.log("[Frontend] Extraction cancelled by user");
+          return;
+        }
+
         logger.error("[EXTRACTION] Extraction failed", error);
         console.error("[Frontend] Extraction failed:", error.message);
         setExtractionProgress(0);
@@ -180,6 +193,13 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
     };
 
     extractPhoto();
+
+    // Cleanup function to abort on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [photo, apiUrl]);
 
   const handleFileChange = (e) => {
@@ -202,6 +222,34 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
 
     setPhoto(file);
     e.target.value = ""; // Allow re-selecting same file
+  };
+
+  // Handle changing photo - abort current extraction and open file picker
+  const handleChangePhoto = (e) => {
+    // Stop event propagation if called from button
+    e?.stopPropagation();
+
+    // Abort ongoing extraction
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Cancel background processing
+    if (processingServiceRef.current) {
+      processingServiceRef.current.cancel();
+    }
+
+    // Reset state
+    setPhoto(null);
+    setPhotoUrl(null);
+    setExtractionProgress(0);
+    setExtractionState({ status: 'idle', descriptions: null, error: null });
+    setProcessingState(null);
+
+    // Open file picker
+    trackClick('photo_change_click');
+    fileInputRef.current?.click();
   };
 
 
@@ -270,9 +318,24 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
             </button>
           ) : (
             <div className="photo-single">
-              <div className="photo-card">
+              <div
+                className="photo-card photo-card-clickable"
+                onClick={handleChangePhoto}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="photo-preview" style={{ position: 'relative', width: '100%', height: 'auto', maxWidth: '280px' }}>
                   <img src={photoUrl} alt="Selected photo" style={{ width: '100%', height: 'auto', display: 'block' }} />
+
+                  {/* Change Photo Button */}
+                  <button
+                    type="button"
+                    className="change-photo-btn"
+                    onClick={handleChangePhoto}
+                    aria-label="Change photo"
+                  >
+                    Change Photo
+                  </button>
+
                   {isExtracting && (
                     <div className="processing-overlay">
                       <div className="processing-indicator">
