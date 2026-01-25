@@ -10,7 +10,6 @@ import { incrementGenerationCount } from "./utils/rateLimit";
 import { getImageProcessingService, resetImageProcessingService, STATES } from "./utils/imageProcessingService";
 
 // Lazy load components that aren't immediately needed
-const OnboardingScreen = lazy(() => import("./components/OnboardingScreen"));
 const ResultScreen = lazy(() => import("./components/ResultScreen"));
 
 const logger = createDevLogger("App");

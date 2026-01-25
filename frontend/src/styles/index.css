@@ -678,10 +678,22 @@ html, body {
     margin-right: -16px;
     padding: 14px 16px;
   }
+
+  .status-message-box {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 14px 16px;
+  }
 }
 
 @media (max-width: 320px) {
   .hero-container {
+    margin-left: -12px;
+    margin-right: -12px;
+    padding: 12px 12px;
+  }
+
+  .status-message-box {
     margin-left: -12px;
     margin-right: -12px;
     padding: 12px 12px;
@@ -744,6 +756,11 @@ html, body {
   border-radius: 10px;
   font-size: 13px;
   line-height: 1.4;
+  margin-left: -20px;
+  margin-right: -20px;
+  margin-top: 12px;
+  padding: 16px 20px;
+  border-radius: 12px;
 }
 
 .status-message-box.status-success {
