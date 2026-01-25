@@ -1,4 +1,25 @@
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import multer from "multer";
+import { rateLimit } from "express-rate-limit";
+import { generateWeddingCharacters, analyzePhoto } from "./gemini.js";
+import { createDevLogger, isDevMode } from "./devLogger.js";
+import { exec } from "child_process";
+import { promisify } from "util";
+import fs from "fs/promises";
+import path from "path";
+import os from "os";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const execAsync = promisify(exec);
+
+const logger = createDevLogger("Server");
+
+const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Validate file is actually an image by checking magic bytes
