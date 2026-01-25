@@ -239,13 +239,17 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
     <div className="input-screen photo-upload-screen">
       <div className="form">
         {/* Header */}
-        <div className="hero-container">
-          <div className="form-group">
-            <label>Photo Upload / तस्वीर अपलोड</label>
-            <p className="form-hint">
-              एक अच्छी और स्पष्ट तस्वीर चुनें (Choose a clear, good quality photo)
-            </p>
-          </div>
+        <div className={isExtractionComplete ? "status-message-box status-success" : "hero-container"}>
+          {isExtractionComplete ? (
+            <span>✓ तस्वीर अपलोड हो गई! (Photo uploaded!)</span>
+          ) : (
+            <div className="form-group">
+              <label>Photo Upload / तस्वीर अपलोड</label>
+              <p className="form-hint">
+                एक अच्छी और स्पष्ट तस्वीर चुनें (Choose a clear, good quality photo)
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Upload Section */}
@@ -295,12 +299,6 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
         </div>
 
         {/* Status Messages */}
-        {isExtractionComplete && (
-          <div className="status-message-box status-success">
-            <span>✓ तस्वीर अपलोड हो गई! (Photo uploaded!)</span>
-          </div>
-        )}
-
         {isExtractionFailed && (
           <div className="status-message-box status-error">
             <span>⚠ अपलोड में समस्या: {extractionState.error}</span>
