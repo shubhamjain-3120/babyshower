@@ -35,250 +35,50 @@ export async function analyzePhoto(photo, requestId = "") {
     photoMimetype: photo?.mimetype,
     photoBufferLen: photo?.buffer?.length,
   });
-  const analysisPrompt = `You are a creative artist's assistant helping to create stylized cartoon/illustration character references for a wedding invitation artwork.
+  const analysisPrompt = `Role: Illustrator's Assistant. Analyze the image to generate specific artistic reference data for a stylized wedding illustration (Bride/Groom).
 
-A couple has provided their photo and wants a cute illustrated cartoon version of themselves for their wedding invitation. Your job is to describe the visual characteristics that an illustrator would need to capture their likeness in a stylized, artistic way.
+### Constraints
+1. Output valid JSON only.
+2. NO "unknown", "hidden", or "null" values. Infer from context/proportions if partially visible.
+3. Use the specific vocabulary lists provided below.
 
-This is for ARTISTIC ILLUSTRATION purposes only - creating personalized wedding invitation art that celebrates the couple.
+### Reference Criteria
 
-### Rules
+**1. Height:** [very short, short, average, tall, very tall] (Relative to each other).
+**2. Coloring:** format as "[Base Tone] with [Palette]".
+   - Base: very fair, fair, light, light-medium, medium, medium-tan, tan, olive, caramel, brown, dark/deep/rich brown.
+   - Palette: warm (golden/peachy), cool (pink/rosy), neutral, olive-toned.
+**3. Hairstyle:** Detailed description of Length, Style, Texture, and Volume.
+   - Groom specific: Fade, undercut, side-part, etc.
+**4. Eye Color:** [dark brown, brown, light brown, hazel, green, blue, grey].
+**5. Eye Size/Shape:** Combine size [small, medium, large, etc.] with shape [almond, round, hooded, monolid, upturned, downturned].
+**6. Body Type:** [slim, athletic, average, curvy, stocky, broad].
+**7. Face Shape:** [oval, round, square, heart, diamond, oblong].
+**8. Facial Hair (Groom):** [Clean-shaven, Light/Heavy stubble, Short/Medium/Full beard, Goatee, Mustache only, Soul patch, Van Dyke, Anchor].
+**9. Spectacles:** [none, rectangular, round, oval, cat-eye, aviator, rimless, half-rim]. Note material/color if present.
 
-* Do NOT return "unknown", "not visible", or null.
-* Focus on capturing the essence and style that would make an illustration recognizable as this couple.
-* Use artistic/illustrator-friendly terminology.
-* If some features are partially visible, make reasonable artistic interpretations.
-* Output must be valid JSON only.
-* Be detailed for coloring, hairstyle, and features - these help the illustrator capture likeness.
-
----
-
-### Describe the following artistic reference characteristics
-
-For **Bride** (for illustration):
-
-* height
-* coloring (for accurate skin tone in illustration)
-* hairstyle
-* eye_color
-* eye_size
-* body_type
-* face_shape
-* spectacles
-
-For **Groom** (for illustration):
-
-* height
-* coloring (for accurate skin tone in illustration)
-* hairstyle (be very detailed - for accurate illustration)
-* eye_color
-* eye_size
-* body_shape
-* facial_hair_style
-* face_shape
-* spectacles
-
----
-
-### Artistic Reference Guidelines
-
-#### Height (relative proportions)
-
-Choose from:
-
-* very short
-* short
-* average
-* tall
-* very tall
-  Base this on body proportions and comparison between bride and groom.
-
-#### Coloring (for illustration palette)
-
-To help the illustrator match colors accurately, describe the coloring that would be used to paint/draw this person:
-- Base tone for illustration: very fair, fair, light, light-medium, medium, medium-tan, tan, olive, caramel, brown, dark brown, deep brown, rich brown
-- Warm or cool palette: warm (golden/peachy tones), cool (pink/rosy tones), neutral, olive-toned
-- Any helpful notes for the illustrator
-
-Example formats:
-* "light-medium with warm golden palette"
-* "fair with cool pink undertones"
-* "medium-tan with olive-toned palette"
-* "caramel brown with warm undertones"
-* "deep brown with neutral palette"
-
-Consider the lighting but focus on what palette the illustrator should use.
-
-#### Hairstyle (for accurate illustration, especially for Groom)
-
-Describe with detail so the illustrator can capture the look:
-- Length: very short, short, medium, long, very long
-- Style: straight, wavy, curly, coily, spiky, slicked back, side-parted, center-parted, pompadour, undercut, fade, crew cut, etc.
-- Texture: fine, medium, thick, coarse
-- Volume: flat, normal, voluminous
-- Any specific characteristics: side-swept bangs, layers, tapered sides, etc.
-
-Example formats for Groom:
-* "short black hair with side part, tapered sides, medium texture, neatly combed"
-* "medium-length wavy dark brown hair, swept back, thick and voluminous"
-* "very short buzz cut, dark hair, clean and even"
-* "short spiky black hair with textured top, faded sides"
-
-Example formats for Bride:
-* "long straight black hair, center-parted, falling past shoulders"
-* "medium-length wavy brown hair with soft layers"
-
-#### Eye color
-
-Choose visible category:
-
-* dark brown
-* brown
-* light brown
-* hazel
-* green
-* blue
-* grey
-  If lighting affects perception, mention that.
-
-#### Eye size
-
-Describe the relative size and shape of eyes:
-
-* small
-* small-medium
-* medium
-* medium-large
-* large
-* very large
-
-Also include eye shape characteristics:
-* almond-shaped
-* round
-* hooded
-* monolid
-* upturned
-* downturned
-* wide-set
-* close-set
-
-Example formats:
-* "medium-large, almond-shaped"
-* "large, round and expressive"
-* "small-medium, hooded"
-* "medium, monolid"
-
-#### Body type (for character silhouette)
-
-Choose the silhouette type for the illustrated character:
-
-* slim
-* athletic
-* average
-* curvy
-* stocky
-* broad
-  Base on visible silhouette and posture.
-
-#### Face shape (for illustration proportions)
-
-Choose the face shape to guide the illustrator:
-* oval
-* round
-* square
-* heart
-* diamond
-* oblong
-
-Consider the overall proportions and choose the best match for the illustration.#### Facial hair style (groom)
-
-Describe clearly and visually with detail:
-* Clean-shaven
-* Light stubble
-* Heavy stubble
-* Short beard
-* Medium beard
-* Full beard
-* Goatee
-* Mustache only
-* Soul patch
-* Van Dyke
-* Anchor beard
-
-Include any specifics about grooming, shape, or thickness.
-
-#### Spectacles
-
-Choose from:
-
-* none
-* rectangular frames
-* round frames
-* oval frames
-* cat-eye frames
-* aviator frames
-* rimless
-* half-rim
-  If wearing glasses, also note the frame color (e.g. "round frames, gold metal" or "rectangular frames, black plastic").
-
----
-
-### Output Format (JSON only)
-
+### Output JSON Structure
 {
   "bride": {
-    "height": {
-      "primary": ""
-    },
-    "coloring": {
-      "primary": ""
-    },
-    "hairstyle": {
-      "primary": ""
-    },
-    "eye_color": {
-      "primary": ""
-    },
-    "eye_size": {
-      "primary": ""
-    },
-    "body_type": {
-      "primary": ""
-    },
-    "face_shape": {
-      "primary": ""
-    },
-    "spectacles": {
-      "primary": ""
-    }
+    "height": { "primary": "" },
+    "coloring": { "primary": "" },
+    "hairstyle": { "primary": "" },
+    "eye_color": { "primary": "" },
+    "eye_size": { "primary": "" },
+    "body_type": { "primary": "" },
+    "face_shape": { "primary": "" },
+    "spectacles": { "primary": "" }
   },
   "groom": {
-    "height": {
-      "primary": ""
-    },
-    "coloring": {
-      "primary": ""
-    },
-    "hairstyle": {
-      "primary": ""
-    },
-    "eye_color": {
-      "primary": ""
-    },
-    "eye_size": {
-      "primary": ""
-    },
-    "body_shape": {
-      "primary": ""
-    },
-    "facial_hair_style": {
-      "primary": ""
-    },
-    "face_shape": {
-      "primary": ""
-    },
-    "spectacles": {
-      "primary": ""
-    }
+    "height": { "primary": "" },
+    "coloring": { "primary": "" },
+    "hairstyle": { "primary": "" },
+    "eye_color": { "primary": "" },
+    "eye_size": { "primary": "" },
+    "body_shape": { "primary": "" },
+    "facial_hair_style": { "primary": "" },
+    "face_shape": { "primary": "" },
+    "spectacles": { "primary": "" }
   }
 }
 
@@ -408,10 +208,10 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelayMs = 2000, requestI
 }
 
 /**
- * Generate image using Gemini 3 Pro Image Preview
+ * Generate image using Gemini 
  */
-async function generateWithGemini3(descriptions, requestId = "") {
-  logger.log(`[${requestId}] Preparing Gemini 3 Pro generation prompt`);
+async function generateWithGemini(descriptions, requestId = "") {
+  logger.log(`[${requestId}] Preparing Gemini generation prompt`);
   // Extract values from the new structure (bride/groom with primary/alternates)
   const bride = descriptions.bride;
   const groom = descriptions.groom;
@@ -422,118 +222,37 @@ async function generateWithGemini3(descriptions, requestId = "") {
     return attr.primary || fallback;
   };
 
-  const prompt = `Create a full-body, front-facing illustration of an Rajasthani bride and groom in a Studio Ghibli–inspired style (soft, painterly, warm colors, gentle outlines, slightly whimsical but realistic proportions).
+  const prompt = `Full-body illustration, front-facing Rajasthani bride and groom. Studio Ghibli style: soft painterly, warm colors, gentle outlines, realistic but slightly whimsical proportions.
 
-CRITICAL RULE - CHARACTER COUNT:
-- Draw EXACTLY ONE bride and EXACTLY ONE groom (2 people total)
-- DO NOT duplicate or repeat characters
-- DO NOT show the same person twice
-- DO NOT create mirror images, reflections, or multiple versions of either character
-- There must be precisely 2 distinct individuals in the image - no more, no less
+CONSTRAINTS: Exactly two subjects (1 bride, 1 groom). Pure white background only. NO props, scenery, text, reflections, or duplicates.
 
-The image must contain only these two characters on a pure white background, with no props, no scenery, no text.
-
-CRITICAL: Match the exact skin color and hairstyle descriptions provided below as closely as possible. These are extracted from the actual couple's photo.
-
-Characters (use these parameters EXACTLY)
-
-Bride
-
+BRIDE DETAILS:
 Height: ${getPrimary(bride?.height)}
+Skin: ${getPrimary(bride?.skin_color)} (precise undertone/shade match)
+Hair: ${getPrimary(bride?.hairstyle)}
+Eyes: ${getPrimary(bride?.eye_color)}, 
+size ${getPrimary(bride?.eye_size, 'medium, almond-shaped')}
+Body: ${getPrimary(bride?.body_shape)} (idealized natural)
+Face: ${getPrimary(bride?.face_shape)}
+Glasses: ${getPrimary(bride?.spectacles, 'none')}
 
-Skin color: ${getPrimary(bride?.skin_color)} (IMPORTANT: Match this exact skin tone precisely - the shade and undertone must be accurate)
-
-Hairstyle: ${getPrimary(bride?.hairstyle)}
-
-Eye color: ${getPrimary(bride?.eye_color)}
-
-Eye size and shape: ${getPrimary(bride?.eye_size, 'medium, almond-shaped')} (render eyes with this exact size and shape)
-
-Body shape: ${getPrimary(bride?.body_shape)}, refined to be ~10% more proportionally idealized while staying natural
-
-Face shape: ${getPrimary(bride?.face_shape)}
-
-Spectacles: ${getPrimary(bride?.spectacles, 'none')}
-
-Groom
-
+GROOM DETAILS:
 Height: ${getPrimary(groom?.height)}
+Skin: ${getPrimary(groom?.skin_color)} (precise undertone/shade match)
+Hair: ${getPrimary(groom?.hairstyle)} (precise style/length/texture match)
+Eyes: ${getPrimary(groom?.eye_color)}, size ${getPrimary(groom?.eye_size, 'medium, almond-shaped')}
+Body: ${getPrimary(groom?.body_shape)} (idealized natural)
+Facial Hair: ${getPrimary(groom?.facial_hair_style)}
+Face: ${getPrimary(groom?.face_shape)}
+Glasses: ${getPrimary(groom?.spectacles, 'none')}
 
-Skin color: ${getPrimary(groom?.skin_color)} (IMPORTANT: Match this exact skin tone precisely - the shade and undertone must be accurate)
+POSE & EXPRESSION: Standing side-by-side, holding hands, facing forward. Formal Indian wedding pose. Happy, warm, joyful expressions. No dynamic angles.
 
-Hairstyle: ${getPrimary(groom?.hairstyle)} (IMPORTANT: Reproduce this exact hairstyle with precise length, style, texture, and parting as described)
+FIXED ATTIRE:
+Groom: Knee-length structured Sherwani (light beige/cream, subtle golden floral pattern). Teal peacock embroidery on left chest/hem. Deep magenta/maroon velvet dupatta over right shoulder (gold borders, peacock motifs). White Churidar bottoms. Golden tan Mojari shoes.
+Bride: Soft blush/pastel pink Lehenga Choli. Voluminous A-line lehenga with floral/mandala embroidery (rose pink, teal, gold). Matching blouse with floral threadwork. Light pink sheer dupatta (gold border). Traditional gold jewelry: layered necklace, oversized jhumkas, pearl maang tikka.
 
-Eye color: ${getPrimary(groom?.eye_color)}
-
-Eye size and shape: ${getPrimary(groom?.eye_size, 'medium, almond-shaped')} (render eyes with this exact size and shape)
-
-Body shape: ${getPrimary(groom?.body_shape)}, refined to be ~10% more proportionally idealized while staying natural
-
-Facial hair style: ${getPrimary(groom?.facial_hair_style)}
-
-Face shape: ${getPrimary(groom?.face_shape)}
-
-Spectacles: ${getPrimary(groom?.spectacles, 'none')}
-
-Fixed Pose & Expression
-
-The couple is standing side-by-side, holding hands, in an Indian wedding–appropriate pose
-
-Both are facing directly forward
-
-Both look very happy, with warm, joyful expressions
-
-No side profiles, no dynamic angles
-
-Fixed Attire (Do not modify)
-
-Groom Attire
-
-Knee-length structured Sherwani in light beige or cream
-
-Subtle golden floral pattern throughout
-
-Teal peacock embroidery on left chest and lower hem
-
-Deep magenta/maroon velvet dupatta over right shoulder with gold borders and peacock motifs
-
-White Churidar bottoms
-
-Golden tan Mojari/Jutti shoes
-
-Bride Attire
-
-Lehenga Choli in soft blush/pastel pink
-
-Voluminous A-line lehenga with floral embroidery and mandala patterns in rose pink, teal, and gold
-
-Matching blouse with delicate floral threadwork
-
-Light pink sheer dupatta with gold-embroidered border
-
-Traditional Indian gold jewelry: layered necklace, oversized jhumkas, pearl maang tikka
-
-Style Constraints
-
-Ghibli-inspired aesthetic: soft shading, rounded facial features, expressive eyes, gentle light
-
-Proportions realistic but slightly stylized
-
-Clean edges, no chibi, no hyper-realism, no caricature
-
-Balanced symmetry between bride and groom
-
-Output Rules
-
-Only the two characters
-
-White background only
-
-No scenery, furniture, or decorations
-
-No text or logos
-
-Full-body visible, from head to toe`;
+STYLE REINFORCEMENT:  Ghibli gentle lighting. Balanced symmetry. No chibi, no hyper-realism. Full body visible.`;
 
   logger.log(`[${requestId}] Prompt prepared`, {
     promptLength: prompt.length,
@@ -621,7 +340,7 @@ export async function generateWeddingCharacters(photo, requestId = "") {
   const generationStartTime = performance.now();
   
   // Directly call the generator without the loop or evaluation
-  const generatedImage = await generateWithGemini3(descriptions, requestId);
+  const generatedImage = await generateWithGemini(descriptions, requestId);
 
   const generationDuration = performance.now() - generationStartTime;
   const totalDuration = performance.now() - totalStartTime;
