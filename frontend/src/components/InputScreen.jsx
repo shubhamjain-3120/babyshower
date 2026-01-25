@@ -215,6 +215,14 @@ export default function InputScreen({
     <div className="input-screen">
       {error && <div className="error-banner">{error}</div>}
 
+      {/* Hero headline */}
+      <div className="hero-container" style={{ marginBottom: '20px' }}>
+        <div className="sample-video-value-hindi">
+          <label>शादी की जानकारी भरें</label>
+          <p className="form-hint">Fill in your wedding details</p>
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit} className="form">
         {/* Names Section */}
         <div className="form-row">

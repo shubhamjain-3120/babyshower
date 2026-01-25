@@ -470,9 +470,9 @@ app.post(
         await fs.writeFile(characterPath, characterImage.buffer);
       }
 
-      // Video dimensions (reduced for lower memory usage)
-      const width = 720;
-      const height = 1280;
+      // Video dimensions (reduced for lower memory usage and faster encoding on constrained servers)
+      const width = 540;
+      const height = 960;
 
       // Text appears immediately (no fade animations for lower memory); characters fade in later
 
@@ -488,9 +488,9 @@ app.post(
       const dateY = Math.round(height * 0.875);
       const venueY = Math.round(height * 0.915);
 
-      // Font sizes (scaled for 720p)
-      const namesFontSize = Math.round(54 * 2);
-      const textFontSize = Math.round(54 * 1);
+      // Font sizes (scaled for 540p - 75% of 720p)
+      const namesFontSize = Math.round(54 * 1.5);
+      const textFontSize = Math.round(54 * 0.75);
       // Character animation timing (fade-in starts at third second)
       const CHARACTER_FADE_START = 3;
       const CHARACTER_FADE_DURATION = 1;
@@ -532,7 +532,7 @@ app.post(
         ? `-i "${backgroundVideoPath}" -loop 1 -i "${characterPath}"`
         : `-i "${backgroundVideoPath}"`;
 
-      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset ultrafast -threads 1 -crf 23 -c:a aac -b:a 128k -movflags +faststart -pix_fmt yuv420p -shortest "${outputPath}"`;
+      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset ultrafast -tune fastdecode -threads 2 -crf 28 -maxrate 800k -bufsize 1600k -c:a aac -b:a 96k -movflags +faststart -pix_fmt yuv420p -shortest "${outputPath}"`;
 
       logger.log(`[${requestId}] Running FFmpeg composition`, {
         command: ffmpegCmd.slice(0, 200) + "...",
@@ -541,12 +541,12 @@ app.post(
       const compositionStart = performance.now();
 
       try {
-        await execAsync(ffmpegCmd, { timeout: 180000 }); // 3 minute timeout
+        await execAsync(ffmpegCmd, { timeout: 300000 }); // 5 minute timeout for slower servers
       } catch (ffmpegError) {
         logger.error(`[${requestId}] FFmpeg composition failed`, {
           error: ffmpegError.message,
-          stderr: ffmpegError.stderr?.slice(0, 1000),
-          stdout: ffmpegError.stdout?.slice(0, 500),
+          stderr: ffmpegError.stderr,
+          stdout: ffmpegError.stdout,
         });
 
         // Cleanup temp files
