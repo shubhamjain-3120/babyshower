@@ -50,12 +50,10 @@ export async function analyzePhoto(photo, requestId = "") {
    - Palette: warm (golden/peachy), cool (pink/rosy), neutral, olive-toned.
 **3. Hairstyle:** Detailed description of Length, Style, Texture, and Volume.
    - Groom specific: Fade, undercut, side-part, etc.
-**4. Eye Color:** [dark brown, brown, light brown, hazel, green, blue, grey].
-**5. Eye Size/Shape:** Combine size [small, medium, large, etc.] with shape [almond, round, hooded, monolid, upturned, downturned].
-**6. Body Type:** [slim, athletic, average, curvy, stocky, broad].
-**7. Face Shape:** [oval, round, square, heart, diamond, oblong].
-**8. Facial Hair (Groom):** [Clean-shaven, Light/Heavy stubble, Short/Medium/Full beard, Goatee, Mustache only, Soul patch, Van Dyke, Anchor].
-**9. Spectacles:** [none, rectangular, round, oval, cat-eye, aviator, rimless, half-rim]. Note material/color if present.
+**4. Body Type:** [slim, athletic, average, curvy, stocky, broad].
+**5. Face Shape:** [oval, round, square, heart, diamond, oblong].
+**6. Facial Hair (Groom):** [Clean-shaven, Light/Heavy stubble, Short/Medium/Full beard, Goatee, Mustache only, Soul patch, Van Dyke, Anchor].
+**7. Spectacles:** [none, rectangular, round, oval, cat-eye, aviator, rimless, half-rim]. Note material/color if present.
 
 ### Output JSON Structure
 {
@@ -63,8 +61,6 @@ export async function analyzePhoto(photo, requestId = "") {
     "height": { "primary": "" },
     "coloring": { "primary": "" },
     "hairstyle": { "primary": "" },
-    "eye_color": { "primary": "" },
-    "eye_size": { "primary": "" },
     "body_type": { "primary": "" },
     "face_shape": { "primary": "" },
     "spectacles": { "primary": "" }
@@ -73,8 +69,6 @@ export async function analyzePhoto(photo, requestId = "") {
     "height": { "primary": "" },
     "coloring": { "primary": "" },
     "hairstyle": { "primary": "" },
-    "eye_color": { "primary": "" },
-    "eye_size": { "primary": "" },
     "body_shape": { "primary": "" },
     "facial_hair_style": { "primary": "" },
     "face_shape": { "primary": "" },
@@ -222,13 +216,13 @@ async function generateWithGemini(descriptions, requestId = "") {
     return attr.primary || fallback;
   };
 
-  const prompt = `(Masterpiece), Studio Ghibli art style. 
+  const prompt = `(Masterpiece), Studio Ghibli art style.
 
-CRITICAL RULE: Physical traits (Skin, Face, Body, Glasses) must be EXACT matches, overriding style defaults. 
+CRITICAL RULE: Physical traits (Skin, Face, Body, Glasses) must be EXACT matches, overriding style defaults.
 
 
 
-[SCENE]: Full-body shot, Bride and Groom standing side-by-side, holding hands, front-facing. 
+[SCENE]: Full-body shot, Bride and Groom standing side-by-side, holding hands, front-facing.
 
 [BACKGROUND]: Pure white background only. No shadows, no props.
 
@@ -241,8 +235,6 @@ Skin Tone: ${getPrimary(bride?.skin_color)} (exact shade)
 Body Shape: ${getPrimary(bride?.body_shape)}
 
 Face Shape: ${getPrimary(bride?.face_shape)}
-
-Eye Shape: ${getPrimary(bride?.eye_size, 'medium')} ${getPrimary(bride?.eye_color)}
 
 Hair: ${getPrimary(bride?.hairstyle)}
 
@@ -259,8 +251,6 @@ Skin Tone: ${getPrimary(groom?.skin_color)} (exact shade)
 Body Shape: ${getPrimary(groom?.body_shape)}
 
 Face Shape: ${getPrimary(groom?.face_shape)}
-
-Eye Shape: ${getPrimary(groom?.eye_size, 'medium')} ${getPrimary(groom?.eye_color)}
 
 Hair: ${getPrimary(groom?.hairstyle)}
 
@@ -284,7 +274,7 @@ Groom: Cream Jodhpuri Sherwani with teal peacock embroidery on left chest. Maroo
 
 Cel shading, hand-drawn aesthetic, gentle lighting, warm colors, sharp focus, high definition.`;
 
-  console.log("[Gemini3] Generating with prompt:", prompt.slice(0, 200) + "...");
+  logger.log(`[${requestId}] Generating with prompt`, { promptLength: prompt.length });
 
   // Use retry logic for transient API errors (503, 429)
   const startTime = performance.now();
@@ -340,22 +330,20 @@ export async function generateWeddingCharacters(photo, requestId = "") {
   const totalStartTime = performance.now();
 
   logger.log(`[${requestId}] ========== STARTING WEDDING PORTRAIT GENERATION (NO EVALUATION) ==========`);
-  console.log("[Generator] Starting wedding portrait generation");
 
   // Step 1: Analyze the photo
   const analysisStartTime = performance.now();
   const descriptions = await analyzePhoto(photo, requestId);
   const analysisDuration = performance.now() - analysisStartTime;
-  
+
   logger.log(`[${requestId}] STEP 1 COMPLETE: Photo analysis done`, {
     duration: `${analysisDuration.toFixed(0)}ms`,
     brideAttributes: Object.keys(descriptions.bride || {}),
     groomAttributes: Object.keys(descriptions.groom || {}),
   });
-  console.log("[Generator] Photo analysis complete");
 
   // Step 2: Generate with Gemini (Single Attempt)
-  console.log("[Generator] Step 2: Generating image with Gemini 2.5 Flash Image...");
+  logger.log(`[${requestId}] Step 2: Generating image with Gemini 2.5 Flash Image`);
 
   const generationStartTime = performance.now();
   
@@ -371,8 +359,6 @@ export async function generateWeddingCharacters(photo, requestId = "") {
     generationDuration: `${generationDuration.toFixed(0)}ms`,
     imageSizeKB: `${(generatedImage.imageData.length * 0.75 / 1024).toFixed(1)} KB`,
   });
-  
-  console.log("[Generator] Generation complete!");
   
   return {
     imageData: generatedImage.imageData,
