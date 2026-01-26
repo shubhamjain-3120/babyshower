@@ -29,6 +29,12 @@ const genAI = useVertexAI
 
 /**
  * Analyze a couple photo using ChatGPT (GPT-4 Vision) to extract detailed descriptions
+ * of bride and groom physical characteristics for portrait generation.
+ *
+ * @param {Object} photo - Multer file object containing photo buffer and mimetype
+ * @param {string} requestId - Unique request ID for logging/tracking
+ * @returns {Promise<Object>} Parsed JSON with bride/groom descriptions (height, coloring, hairstyle, etc.)
+ * @throws {Error} If API call fails or response cannot be parsed
  */
 export async function analyzePhoto(photo, requestId = "") {
   logger.log(`[${requestId}] Starting photo analysis with ChatGPT`, {
@@ -202,7 +208,13 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelayMs = 2000, requestI
 }
 
 /**
- * Generate image using Gemini 
+ * Generate wedding portrait using Gemini 2.5 Flash Image model.
+ * Creates Studio Ghibli-style illustration based on bride/groom descriptions.
+ *
+ * @param {Object} descriptions - Structured bride/groom descriptions from photo analysis
+ * @param {string} requestId - Unique request ID for logging/tracking
+ * @returns {Promise<Object>} Object with imageData (base64) and mimeType
+ * @throws {Error} If generation fails or no image returned
  */
 async function generateWithGemini(descriptions, requestId = "") {
   logger.log(`[${requestId}] Preparing Gemini generation prompt`);

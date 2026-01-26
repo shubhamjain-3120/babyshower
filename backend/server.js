@@ -22,7 +22,13 @@ const logger = createDevLogger("Server");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Validate file is actually an image by checking magic bytes
+/**
+ * Validate file is actually an image by checking magic bytes (file signature).
+ * More secure than MIME type validation which can be spoofed.
+ *
+ * @param {Buffer} buffer - File buffer to validate
+ * @returns {boolean} True if buffer contains valid image format (JPEG/PNG/GIF/WebP)
+ */
 function isValidImageBuffer(buffer) {
   if (!buffer || buffer.length < 4) return false;
 
@@ -44,7 +50,12 @@ function isValidImageBuffer(buffer) {
   return false;
 }
 
-// Validate file is actually a WebM video by checking magic bytes
+/**
+ * Validate file is actually a WebM video by checking magic bytes (file signature).
+ *
+ * @param {Buffer} buffer - File buffer to validate
+ * @returns {boolean} True if buffer contains valid WebM format (EBML header)
+ */
 function isValidWebMBuffer(buffer) {
   if (!buffer || buffer.length < 4) return false;
 
