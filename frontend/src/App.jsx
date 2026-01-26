@@ -67,76 +67,26 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES, signal = null
   // Merge signal into options if provided
   const fetchOptions = signal ? { ...options, signal } : options;
 
-  // DIAGNOSTIC: Log full request details
-  console.log("========== FETCH DEBUG START ==========");
-  console.log("[FETCH] URL:", url);
-  console.log("[FETCH] API_URL env var:", API_URL);
-  console.log("[FETCH] Full URL being called:", url);
-  console.log("[FETCH] Method:", options?.method || "GET");
-  console.log("[FETCH] Has body:", !!options?.body);
-  console.log("[FETCH] Navigator online:", navigator.onLine);
-  console.log("[FETCH] Window location:", window.location.href);
-  console.log("[FETCH] Window origin:", window.location.origin);
-
-  // Test basic connectivity
-  try {
-    const testUrl = "https://httpbin.org/get";
-    console.log("[FETCH] Testing basic connectivity to httpbin.org...");
-    const testResponse = await fetch(testUrl, { method: "GET", mode: "cors" });
-    console.log("[FETCH] Connectivity test result:", testResponse.status);
-  } catch (testErr) {
-    console.log("[FETCH] Connectivity test FAILED:", testErr.name, testErr.message);
-  }
-
   for (let attempt = 0; attempt < retries; attempt++) {
     // Check if aborted before attempting
     if (signal?.aborted) {
       throw new DOMException('Request was cancelled', 'AbortError');
     }
 
-    console.log(`[FETCH] Attempt ${attempt + 1}/${retries} starting...`);
-    const startTime = Date.now();
-
     try {
-      console.log("[FETCH] About to call fetch()...");
       const response = await fetch(url, fetchOptions);
-      const elapsed = Date.now() - startTime;
-
-      console.log(`[FETCH] Response received in ${elapsed}ms`);
-      console.log("[FETCH] Status:", response.status);
-      console.log("[FETCH] Status Text:", response.statusText);
-      console.log("[FETCH] Response OK:", response.ok);
-      console.log("[FETCH] Response type:", response.type);
-      console.log("[FETCH] Response URL:", response.url);
-
-      // Log response headers
-      const headers = {};
-      response.headers.forEach((value, key) => { headers[key] = value; });
-      console.log("[FETCH] Response headers:", JSON.stringify(headers));
 
       // Don't retry client errors (4xx), only server errors (5xx)
       if (response.ok || (response.status >= 400 && response.status < 500)) {
-        console.log("[FETCH] Returning successful response");
-        console.log("========== FETCH DEBUG END ==========");
         return response;
       }
 
       // Server error - will retry
       lastError = new Error(`Server error: ${response.status}`);
       logger.warn(`API attempt ${attempt + 1} failed with status ${response.status}`);
-      console.log("[FETCH] Server error, will retry...");
     } catch (err) {
-      const elapsed = Date.now() - startTime;
-      console.log(`[FETCH] EXCEPTION after ${elapsed}ms`);
-      console.log("[FETCH] Error name:", err.name);
-      console.log("[FETCH] Error message:", err.message);
-      console.log("[FETCH] Error stack:", err.stack);
-      console.log("[FETCH] Full error object:", JSON.stringify(err, Object.getOwnPropertyNames(err)));
-
       // If aborted, throw immediately without retry
       if (err.name === 'AbortError') {
-        console.log("[FETCH] Request was aborted");
-        console.log("========== FETCH DEBUG END ==========");
         throw err;
       }
       // Network error - will retry
@@ -147,14 +97,11 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES, signal = null
     // Don't delay after the last attempt
     if (attempt < retries - 1) {
       const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
-      console.log(`[FETCH] Retrying in ${delay}ms...`);
       logger.log(`Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
-  console.log("[FETCH] All retries exhausted, throwing error");
-  console.log("========== FETCH DEBUG END ==========");
   throw lastError;
 }
 
@@ -252,18 +199,15 @@ export default function App() {
 
     if (screen === SCREENS.LOADING) {
       // Start playing audio on loading screen
-      audioRef.current.play().catch((err) => {
-        console.log("[App] Could not play audio:", err.message);
+      audioRef.current.play().catch(() => {
         setIsMusicPlaying(false);
       });
       setIsMusicPlaying(true);
-      console.log("[App] Started background music for loading screen");
     } else {
       // Stop audio on all other screens
       audioRef.current.pause();
       audioRef.current.currentTime = 0; // Reset to start
       setIsMusicPlaying(false);
-      console.log("[App] Stopped background music (not on loading screen)");
     }
   }, [screen]);
 
@@ -362,7 +306,6 @@ export default function App() {
       // If photo is not processed, wait for processing to complete before video generation
       if (service && !isPhotoProcessed && processingStarted && !service.isDone()) {
         logger.log("Step 1: Photo not fully processed, waiting for processing to complete");
-        console.log("[App] Waiting for photo processing to complete (extraction + generation + evaluation + bg removal)...");
 
         try {
           const status = await waitForProcessing(service);
@@ -372,17 +315,14 @@ export default function App() {
             imageLength: characterImage?.length,
             isPhotoProcessed: status.isPhotoProcessed,
           });
-          console.log("[App] Photo processing complete");
         } catch (processingError) {
           // Processing failed - use fallback image from service (original with bg removed)
           logger.warn("Step 1: Photo processing failed, using fallback", processingError.message);
-          console.log("[App] Photo processing failed, using fallback image");
           characterImage = service.getStatus().processedImage;
         }
       } else if (service?.isImageReady() && isPhotoProcessed) {
         // Use already processed image from background service
         logger.log("Step 1: Using pre-processed image from background service");
-        console.log("[App] Using pre-processed image (photo processing complete)");
         characterImage = service.getStatus().processedImage;
 
         logger.log("Step 1 complete: Pre-processed image ready", {
@@ -391,7 +331,6 @@ export default function App() {
       } else if (processingStarted && !service.isDone()) {
         // Processing started but not complete - wait for it
         logger.log("Step 1: Background processing active, waiting", { state: serviceState });
-        console.log("[App] Background processing active, waiting...");
 
         try {
           const status = await waitForProcessing(service);
@@ -400,22 +339,19 @@ export default function App() {
           logger.log("Step 1 complete: Background processing finished", {
             imageLength: characterImage?.length,
           });
-          console.log("[App] Background processing complete");
         } catch (processingError) {
           // Processing failed - use fallback image from service
           logger.warn("Step 1: Background processing failed, using fallback", processingError.message);
-          console.log("[App] Background processing failed, using fallback image");
           characterImage = service.getStatus().processedImage;
         }
       } else if (processingStarted && service.isDone()) {
         // Already done - use whatever result we have (could be fallback)
         characterImage = service.getStatus().processedImage;
-        
+
         logger.log("Step 1: Using completed processing result", {
           imageLength: characterImage?.length,
           state: serviceState,
         });
-        console.log("[App] Using completed processing result");
       } else if (shouldSkipAPI && generationFormData.characterFile) {
         // Dev mode: use local character file
         logger.log("Step 1: Using local character file (dev mode - skipping API)", {
@@ -423,7 +359,6 @@ export default function App() {
           fileSize: `${(generationFormData.characterFile.size / 1024).toFixed(1)} KB`,
           fileType: generationFormData.characterFile.type,
         });
-        console.log("[App] Dev mode enabled - using local character file");
 
         characterImage = await new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -435,7 +370,6 @@ export default function App() {
         logger.log("Step 1 complete: Character file loaded as data URL", {
           dataUrlLength: characterImage.length,
         });
-        console.log("[App] Character file loaded, skipping API calls");
       }
 
       // Fallback: call API directly if no processed image available
@@ -452,7 +386,6 @@ export default function App() {
           photoSize: `${(generationFormData.photo.size / 1024).toFixed(1)} KB`,
           photoType: generationFormData.photo.type,
         });
-        console.log("[App] Calling backend API...");
 
         const startApiCall = performance.now();
         const response = await fetchWithRetry(`${API_URL}/api/generate`, {
@@ -483,7 +416,6 @@ export default function App() {
           evaluationScore: result.evaluation?.score,
           evaluationPassed: result.evaluation?.passed,
         });
-        console.log("[App] Received image from backend");
 
         characterImage = result.characterImage;
       }
@@ -493,15 +425,12 @@ export default function App() {
       const usedProcessingService = service?.isImageReady() || (service && !service.isDone());
       if (usedProcessingService) {
         logger.log("Step 2: Skipping background removal (already done by processing service)");
-        console.log("[App] Background already removed by processing service");
       } else if (generationFormData.skipBackgroundRemoval) {
         logger.log("Step 2: Skipping background removal (dev mode toggle)");
-        console.log("[App] Skipping background removal (dev mode)");
       } else {
         logger.log("Step 2: Starting background removal");
-        console.log("[App] Removing background...");
         const startBgRemoval = performance.now();
-        
+
         try {
           characterImage = await removeImageBackground(characterImage);
 
@@ -509,11 +438,9 @@ export default function App() {
             outputLength: characterImage?.length,
             duration: `${(performance.now() - startBgRemoval).toFixed(0)}ms`,
           });
-          console.log("[App] Background removal complete");
         } catch (bgError) {
           // If background removal fails, use the original image
           logger.warn("Step 2", `Background removal failed, using original: ${bgError.message}`);
-          console.warn("[App] Background removal failed, using original:", bgError.message);
         }
       }
 
@@ -522,7 +449,6 @@ export default function App() {
 
       if (generationFormData.skipVideoGeneration) {
         logger.log("Step 3: Skipping video generation (dev mode toggle)");
-        console.log("[App] Skipping video generation (dev mode)");
 
         // Convert the character image to a blob for the result screen
         // This allows previewing the image without video composition
@@ -540,7 +466,6 @@ export default function App() {
           venue: generationFormData.venue,
           characterImageLength: characterImage?.length,
         });
-        console.log("[App] Composing video invite (server-side)...");
 
         // Compose final invite as video with character overlay (always server-side)
         const startVideoCompose = performance.now();
@@ -581,7 +506,6 @@ export default function App() {
       }
 
       logger.log("Step 4: Showing completion state");
-      console.log("[App] Generation complete! Showing 100% briefly...");
 
       // Jump progress to 100% and wait briefly before transitioning
       setLoadingCompleted(true);
@@ -596,11 +520,9 @@ export default function App() {
       // Don't show error for cancelled operations
       if (err.name === 'AbortError') {
         logger.log("Generation cancelled by user");
-        console.log("[App] Generation cancelled by user");
         return;
       }
       logger.error("Generation failed", err);
-      console.error("[App] Generation error:", err);
       setError(err.message);
       setScreen(SCREENS.INPUT);
     }
@@ -614,7 +536,6 @@ export default function App() {
     }
 
     logger.log("User cancelled generation");
-    console.log("[App] User cancelled generation");
 
     // Reset state and go back to input screen
     setScreen(SCREENS.INPUT);
