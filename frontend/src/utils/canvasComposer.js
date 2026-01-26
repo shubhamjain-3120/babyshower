@@ -1,15 +1,12 @@
 /**
- * Phase 6: Royal Cursive Typography System
+ * Canvas Composer - Royal Cursive Typography System
  *
- * Key changes from Phase 5:
+ * Typography design:
  * - Royal cursive script (Alex Brush) for couple's names
  * - Names with first letter capitalized for elegant cursive flow
- * - Font size 30% larger for prominence
  * - Bride's name first, groom's name second
- * - Pink roses: before bride's first letter, after groom's last letter
- * - Names in warm gold gradient
- * - Ampersand in copper color
- * - Clean humanist sans-serif (Inter) for supporting text
+ * - Names in warm gold gradient, ampersand in copper color
+ * - Clean serif (Playfair Display) for date and venue
  * - Precise vertical rhythm with generous whitespace
  */
 
@@ -18,7 +15,7 @@ const CANVAS_WIDTH = 1080;
 const CANVAS_HEIGHT = 1920;
 
 // ============================================================================
-// PHASE 5: PREMIUM TYPOGRAPHY LAYOUT SPECIFICATION
+// LAYOUT SPECIFICATION
 // ============================================================================
 const LAYOUT_V4 = {
   canvas: {
