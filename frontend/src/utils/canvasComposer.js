@@ -342,28 +342,28 @@ function drawFoilTexture(ctx, x, y, width, height, intensity = 0.08) {
   
   // Create subtle noise pattern
   const imageData = textureCtx.createImageData(width, height);
-  const data = imageData.data;
-  
-  for (let i = 0; i < data.length; i += 4) {
+  const pixelData = imageData.data;
+
+  for (let i = 0; i < pixelData.length; i += 4) {
     // Random value for each pixel with gold-tinted noise
     const noise = Math.random();
     // Very subtle variation - mostly transparent with occasional bright spots
     if (noise > 0.97) {
       // Rare bright specular highlight (foil glint)
-      data[i] = 255;     // R - gold tint
-      data[i + 1] = 235; // G
-      data[i + 2] = 180; // B
-      data[i + 3] = Math.floor(40 * intensity * 10); // A - subtle
+      pixelData[i] = 255;     // R - gold tint
+      pixelData[i + 1] = 235; // G
+      pixelData[i + 2] = 180; // B
+      pixelData[i + 3] = Math.floor(40 * intensity * 10); // A - subtle
     } else if (noise > 0.85) {
       // Subtle texture variation
       const brightness = 180 + Math.floor(noise * 75);
-      data[i] = brightness;
-      data[i + 1] = brightness * 0.85;
-      data[i + 2] = brightness * 0.6;
-      data[i + 3] = Math.floor(15 * intensity * 10); // Very subtle
+      pixelData[i] = brightness;
+      pixelData[i + 1] = brightness * 0.85;
+      pixelData[i + 2] = brightness * 0.6;
+      pixelData[i + 3] = Math.floor(15 * intensity * 10); // Very subtle
     } else {
       // Transparent (no noise)
-      data[i + 3] = 0;
+      pixelData[i + 3] = 0;
     }
   }
   
