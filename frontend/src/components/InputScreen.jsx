@@ -147,9 +147,6 @@ export default function InputScreen({
   // Derived values
   const hasPhoto = photo !== null;
 
-  // Create and manage Object URL for photo preview
-  // This prevents memory leaks by cleaning up old URL when photo changes
-  // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
 
