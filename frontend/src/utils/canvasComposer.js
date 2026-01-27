@@ -202,6 +202,14 @@ async function loadFonts() {
 /**
  * Calculate font size to fit text within max width
  * Includes letter-spacing compensation for accurate measurement
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
+ * @param {string} text - Text to measure
+ * @param {number} maxWidth - Maximum allowed width in pixels
+ * @param {number} idealSize - Preferred font size
+ * @param {number} minSize - Minimum acceptable font size
+ * @param {string} fontFamily - Font family name
+ * @param {number} [letterSpacing=0] - Letter spacing multiplier
+ * @returns {number} Calculated font size
  */
 function calculateFontSize(ctx, text, maxWidth, idealSize, minSize, fontFamily, letterSpacing = 0) {
   let fontSize = idealSize;
@@ -225,6 +233,11 @@ function calculateFontSize(ctx, text, maxWidth, idealSize, minSize, fontFamily, 
 /**
  * Draw text with letter-spacing (tracking)
  * Canvas doesn't natively support letter-spacing, so we draw character by character
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
+ * @param {string} text - Text to render
+ * @param {number} x - Center X position
+ * @param {number} y - Baseline Y position
+ * @param {number} letterSpacing - Letter spacing multiplier
  */
 function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
   if (letterSpacing <= 0) {
@@ -256,6 +269,13 @@ function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
 /**
  * Draw text with small caps styling
  * First letter of each word is full size, remaining letters are smaller uppercase
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
+ * @param {string} text - Text to render
+ * @param {number} x - Center X position
+ * @param {number} y - Baseline Y position
+ * @param {number} letterSpacing - Letter spacing multiplier
+ * @param {string} fontFamily - Font family name
+ * @param {string} fontWeight - Font weight (e.g., "400", "500")
  */
 function drawTextWithSmallCaps(ctx, text, x, y, letterSpacing, fontFamily, fontWeight) {
   const baseFontSize = parseFloat(ctx.font);
@@ -306,6 +326,12 @@ function drawTextWithSmallCaps(ctx, text, x, y, letterSpacing, fontFamily, fontW
 /**
  * Create warm metallic gold gradient with subtle foil-like appearance
  * Very subtle gradient transitions for elegant, non-flat fill
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
+ * @param {number} x - Center X position
+ * @param {number} y - Center Y position
+ * @param {number} width - Gradient width
+ * @param {number} height - Gradient height
+ * @returns {CanvasGradient} Linear gradient object
  */
 function createPremiumGoldGradient(ctx, x, y, width, height) {
   // Diagonal gradient for subtle metallic sheen
@@ -332,6 +358,12 @@ function createPremiumGoldGradient(ctx, x, y, width, height) {
 /**
  * Draw foil texture overlay for metallic simulation
  * Creates subtle noise pattern that simulates foil/metallic finish
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
+ * @param {number} x - Center X position
+ * @param {number} y - Center Y position
+ * @param {number} width - Texture width
+ * @param {number} height - Texture height
+ * @param {number} [intensity=0.08] - Texture intensity (0-1)
  */
 function drawFoilTexture(ctx, x, y, width, height, intensity = 0.08) {
   // Create offscreen canvas for texture
@@ -379,6 +411,12 @@ function drawFoilTexture(ctx, x, y, width, height, intensity = 0.08) {
 
 /**
  * Create warm ivory gradient for supporting text
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
+ * @param {number} x - Center X position
+ * @param {number} y - Center Y position
+ * @param {number} width - Gradient width
+ * @param {number} height - Gradient height
+ * @returns {CanvasGradient} Linear gradient object
  */
 function createWarmIvoryGradient(ctx, x, y, width, height) {
   const gradient = ctx.createLinearGradient(
