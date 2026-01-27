@@ -2,23 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
 import { getImageProcessingService } from "../utils/imageProcessingService";
+import { validateFile } from "../utils/fileValidation";
 
 const logger = createDevLogger("PhotoUploadScreen");
-
-// File validation
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-
-const validateFile = (file) => {
-  if (!file) return { valid: false, error: "No file selected" };
-  if (file.size > MAX_FILE_SIZE) {
-    return { valid: false, error: "File too large. Maximum size is 10MB." };
-  }
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return { valid: false, error: "Invalid file type. Please upload a JPEG, PNG, WebP, or GIF image." };
-  }
-  return { valid: true };
-};
 
 /**
  * Photo Upload Screen - Dedicated screen for photo upload with background processing

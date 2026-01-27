@@ -3,6 +3,7 @@ import useSpeechRecognition from "../hooks/useSpeechRecognition";
 import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
 import { getRateLimitState, formatResetTime, getMaxGenerations } from "../utils/rateLimit";
+import { validateFile } from "../utils/fileValidation";
 
 const logger = createDevLogger("InputScreen");
 
@@ -36,21 +37,6 @@ const sanitizeInput = (input) => {
     .replace(/javascript:/gi, "") // Remove javascript: protocol
     .replace(/on\w+=/gi, "") // Remove event handlers like onclick=
     .trim();
-};
-
-// Validate file before upload
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-
-const validateFile = (file) => {
-  if (!file) return { valid: false, error: "No file selected" };
-  if (file.size > MAX_FILE_SIZE) {
-    return { valid: false, error: "File too large. Maximum size is 10MB." };
-  }
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return { valid: false, error: "Invalid file type. Please upload a JPEG, PNG, WebP, or GIF image." };
-  }
-  return { valid: true };
 };
 
 // Format date for invite display
