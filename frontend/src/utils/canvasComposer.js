@@ -132,6 +132,11 @@ function capitalizeFirst(str) {
 // UTILITY FUNCTIONS
 // ============================================================================
 
+/**
+ * Loads an image from a URL with CORS support
+ * @param {string} src - Image source URL or data URL
+ * @returns {Promise<HTMLImageElement>} Promise that resolves to loaded image
+ */
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -142,6 +147,11 @@ function loadImage(src) {
   });
 }
 
+/**
+ * Loads all required fonts for canvas rendering
+ * Includes AlexBrush, Playfair Display, Inter, and fallback fonts
+ * @returns {Promise<void>} Promise that resolves when fonts are loaded
+ */
 async function loadFonts() {
   // Premium typography fonts
   const alexBrush = new FontFace(
@@ -723,6 +733,11 @@ function drawGroundShadow(ctx, characterBounds) {
 // BACKGROUND CANVAS
 // ============================================================================
 
+/**
+ * Creates a canvas with the background image
+ * @param {HTMLImageElement} backgroundImg - Background image to draw
+ * @returns {HTMLCanvasElement} Canvas with background rendered
+ */
 function createBackgroundCanvas(backgroundImg) {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_WIDTH;
