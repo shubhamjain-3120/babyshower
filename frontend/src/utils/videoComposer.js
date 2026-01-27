@@ -451,15 +451,15 @@ async function clientConvertWebMToMP4(webmBlob, onProgress) {
 
   // Read output file
   logger.log("Reading output file from FFmpeg virtual filesystem");
-  const data = await ffmpegInstance.readFile("output.mp4");
-  logger.log("Output file read", { outputBytes: data.byteLength });
+  const mp4FileData = await ffmpegInstance.readFile("output.mp4");
+  logger.log("Output file read", { outputBytes: mp4FileData.byteLength });
 
   // Cleanup
   logger.log("Cleaning up FFmpeg virtual filesystem");
   await ffmpegInstance.deleteFile("input.webm");
   await ffmpegInstance.deleteFile("output.mp4");
 
-  const mp4Blob = new Blob([data.buffer], { type: "video/mp4" });
+  const mp4Blob = new Blob([mp4FileData.buffer], { type: "video/mp4" });
   const totalConversionTime = performance.now() - conversionStartTime;
   const compressionRatio = ((1 - mp4Blob.size / webmBlob.size) * 100).toFixed(1);
 
