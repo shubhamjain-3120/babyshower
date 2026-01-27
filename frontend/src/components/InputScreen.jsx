@@ -3,7 +3,6 @@ import useSpeechRecognition from "../hooks/useSpeechRecognition";
 import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
 import { getRateLimitState, formatResetTime, getMaxGenerations } from "../utils/rateLimit";
-import { validateFile } from "../utils/fileValidation";
 
 const logger = createDevLogger("InputScreen");
 
