@@ -108,14 +108,12 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
         photoType: photo.type,
         photoName: photo.name,
       });
-      console.log("[Frontend] Preparing photo for extraction...");
 
       try {
         const formData = new FormData();
         formData.append("photo", photo);
 
         logger.log("[EXTRACTION] Step 2: Sending photo to backend, waiting for response...");
-        console.log("[Frontend] Sending photo to backend, waiting for response...");
 
         const response = await fetch(`${apiUrl}/api/extract`, {
           method: "POST",
@@ -127,7 +125,6 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
           status: response.status,
           ok: response.ok,
         });
-        console.log("[Frontend] Response received from backend");
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: "Extraction failed" }));
@@ -143,7 +140,6 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
           hasBride: !!result.descriptions?.bride,
           hasGroom: !!result.descriptions?.groom,
         });
-        console.log("[Frontend] Extraction complete - response parsed successfully");
 
         // Set progress to 100% and mark as complete
         setExtractionProgress(100);
@@ -154,7 +150,6 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
           logger.log("[BACKGROUND] Starting background processing after extraction", {
             photoSize: `${(photo.size / 1024).toFixed(1)} KB`,
           });
-          console.log("[Frontend] Starting background processing (generation → evaluation → bg removal)...");
 
           // Start processing from generation step (extraction already done)
           processingServiceRef.current.startProcessingFromGeneration(photo, apiUrl, result.descriptions, {
@@ -167,12 +162,10 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
         // Don't show error for cancelled operations
         if (error.name === 'AbortError') {
           logger.log("[EXTRACTION] Extraction cancelled by user");
-          console.log("[Frontend] Extraction cancelled by user");
           return;
         }
 
         logger.error("[EXTRACTION] Extraction failed", error);
-        console.error("[Frontend] Extraction failed:", error.message);
         setExtractionProgress(0);
         setExtractionState({ status: 'failed', descriptions: null, error: error.message });
       }
