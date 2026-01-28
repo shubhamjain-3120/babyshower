@@ -3,11 +3,15 @@ import { trackPageView, trackClick } from "../utils/analytics";
 
 /**
  * Sample Video Screen - Hero example of final output
- * 
- * Shows a sample wedding invite video to entice users
- * and drives them to upload their photo
+ *
+ * Shows a sample wedding invite video to entice users and drives them
+ * to upload their photo. This is the first screen users see when they
+ * open the app.
+ *
+ * @param {Object} props - Component props
+ * @param {Function} props.onProceed - Callback fired when user clicks "Create My Invite" button
+ * @returns {JSX.Element} Sample video screen with autoplay video and CTA button
  */
-
 export default function SampleVideoScreen({ onProceed }) {
   // Track page view on mount
   useEffect(() => {
