@@ -22,15 +22,7 @@ const genAI = useVertexAI
       apiKey: process.env.GEMINI_API_KEY,
     });
 
-/**
- * Analyze a couple photo using ChatGPT (GPT-4 Vision) to extract detailed descriptions
- * of bride and groom physical characteristics for portrait generation.
- *
- * @param {Object} photo - Multer file object containing photo buffer and mimetype
- * @param {string} requestId - Unique request ID for logging/tracking
- * @returns {Promise<Object>} Parsed JSON with bride/groom descriptions (height, coloring, hairstyle, etc.)
- * @throws {Error} If API call fails or response cannot be parsed
- */
+//Analyze a couple photo using ChatGPT (GPT-4 Vision) to extract detailed descriptions
 export async function analyzePhoto(photo, requestId = "") {
   logger.log(`[${requestId}] Starting photo analysis with ChatGPT`, {
     photoMimetype: photo?.mimetype,
@@ -139,11 +131,9 @@ export async function analyzePhoto(photo, requestId = "") {
     // Check if this is a content policy refusal
     if (responseText.toLowerCase().includes("sorry") || responseText.toLowerCase().includes("can't") || responseText.toLowerCase().includes("cannot")) {
       logger.error(`[${requestId}] Content policy refusal detected`, responseText.slice(0, 500));
-      console.error(`[${requestId}] FULL GPT-4o RESPONSE: ${responseText}`);
       throw new Error(`AI photo analysis refused. Response: ${responseText.slice(0, 300)}`);
     }
     logger.error(`[${requestId}] Failed to parse JSON from response`, responseText.slice(0, 500));
-    console.error(`[${requestId}] FULL GPT-4o RESPONSE: ${responseText}`);
     throw new Error(`Failed to parse photo analysis. Response: ${responseText.slice(0, 300)}`);
   }
 
@@ -202,15 +192,20 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelayMs = 2000, requestI
   throw lastError;
 }
 
-/**
- * Generate wedding portrait using Gemini 2.5 Flash Image model.
- * Creates Studio Ghibli-style illustration based on bride/groom descriptions.
- *
- * @param {Object} descriptions - Structured bride/groom descriptions from photo analysis
- * @param {string} requestId - Unique request ID for logging/tracking
- * @returns {Promise<Object>} Object with imageData (base64) and mimeType
- * @throws {Error} If generation fails or no image returned
- */
+// Generate wedding characters: analyze photo then generate portrait
+export async function generateWeddingCharacters(photo, requestId = "") {
+  logger.log(`[${requestId}] Starting generateWeddingCharacters pipeline`);
+
+  // Step 1: Analyze photo to extract descriptions
+  const descriptions = await analyzePhoto(photo, requestId);
+
+  // Step 2: Generate portrait using Gemini
+  const result = await generateWithGemini(descriptions, requestId);
+
+  return result;
+}
+
+//Generate wedding portrait using Gemini 2.5 Flash Image model
 async function generateWithGemini(descriptions, requestId = "") {
   logger.log(`[${requestId}] Preparing Gemini generation prompt`);
   // Extract values from the new structure (bride/groom with primary/alternates)
@@ -225,9 +220,9 @@ async function generateWithGemini(descriptions, requestId = "") {
 
   const prompt = `(Masterpiece), Studio Ghibli art style.
 
-CRITICAL RULE: Physical traits (Skin, Face, Body, Glasses) must be EXACT matches, overriding style defaults.
+CRITICAL RULE: Physical traits (Skin, Face, Body, Glasses) must be EXACT matches, overriding style defaults. 
 
-
+CRITICAL FACIAL EXPRESSION: Both Bride and Groom must have a subtle, warm smile (gentle upturned lips, calm relaxed eyes). This is mandatory and must not be neutral, serious, or exaggerated.
 
 [SCENE]: Full-body shot, Bride and Groom standing side-by-side, holding hands, front-facing.
 
@@ -333,66 +328,3 @@ Cel shading, hand-drawn aesthetic, gentle lighting, warm colors, sharp focus, hi
   };
 }
 
-/**
- * Generate AI wedding portrait from couple photo
- *
- * Two-step process:
- * 1. Analyze photo with OpenAI GPT-4o to extract physical features (skin tone, hair, body shape, etc.)
- * 2. Generate Studio Ghibli-style portrait with Gemini 2.5 Flash Image based on descriptions
- *
- * @param {Object} photo - Multer file object containing photo buffer and mimetype
- * @param {Buffer} photo.buffer - Photo file buffer
- * @param {string} photo.mimetype - Photo MIME type (image/jpeg, image/png, etc.)
- * @param {string} [requestId=""] - Unique request ID for logging/tracking
- * @returns {Promise<Object>} - Generation result with image data and dummy evaluation
- * @returns {string} result.imageData - Base64-encoded generated image
- * @returns {string} result.mimeType - Image MIME type (image/png)
- * @returns {Object} result.evaluation - Dummy evaluation object (always passed)
- * @throws {Error} - If photo analysis or image generation fails
- */
-export async function generateWeddingCharacters(photo, requestId = "") {
-  const totalStartTime = performance.now();
-
-  logger.log(`[${requestId}] ========== STARTING WEDDING PORTRAIT GENERATION (NO EVALUATION) ==========`);
-
-  // Step 1: Analyze the photo
-  const analysisStartTime = performance.now();
-  const descriptions = await analyzePhoto(photo, requestId);
-  const analysisDuration = performance.now() - analysisStartTime;
-
-  logger.log(`[${requestId}] STEP 1 COMPLETE: Photo analysis done`, {
-    duration: `${analysisDuration.toFixed(0)}ms`,
-    brideAttributes: Object.keys(descriptions.bride || {}),
-    groomAttributes: Object.keys(descriptions.groom || {}),
-  });
-
-  // Step 2: Generate with Gemini (Single Attempt)
-  logger.log(`[${requestId}] Step 2: Generating image with Gemini 2.5 Flash Image`);
-
-  const generationStartTime = performance.now();
-  
-  // Directly call the generator without the loop or evaluation
-  const generatedImage = await generateWithGemini(descriptions, requestId);
-
-  const generationDuration = performance.now() - generationStartTime;
-  const totalDuration = performance.now() - totalStartTime;
-
-  logger.log(`[${requestId}] ========== GENERATION COMPLETE ==========`, {
-    totalDuration: `${totalDuration.toFixed(0)}ms`,
-    analysisDuration: `${analysisDuration.toFixed(0)}ms`,
-    generationDuration: `${generationDuration.toFixed(0)}ms`,
-    imageSizeKB: `${(generatedImage.imageData.length * 0.75 / 1024).toFixed(1)} KB`,
-  });
-  
-  return {
-    imageData: generatedImage.imageData,
-    mimeType: generatedImage.mimeType,
-    // We return a dummy evaluation object so front-ends expecting this structure don't break
-    evaluation: {
-        passed: true,
-        score: 100,
-        characterCount: 2, // Assumed
-        recommendation: "ACCEPT" 
-    }
-  };
-}

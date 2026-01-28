@@ -15,6 +15,16 @@ const sanitizeForFilename = (name) => {
     .substring(0, 30) || "unknown";
 };
 
+function getFileExtension(blob) {
+  if (!(blob instanceof Blob)) return 'mp4';
+  const type = blob.type;
+  if (type.startsWith('image/')) {
+    const ext = type.split('/')[1] || 'png';
+    return ext === 'jpeg' ? 'jpg' : ext;
+  }
+  return type === 'video/mp4' ? 'mp4' : 'webm';
+}
+
 export default function ResultScreen({ inviteVideo, brideName, groomName, onReset }) {
   const [mediaUrl, setMediaUrl] = useState(null);
   const [isImage, setIsImage] = useState(false);
@@ -84,22 +94,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
       link.href = inviteVideo;
     }
     
-    // Determine extension based on MIME type
-    let extension;
-    if (inviteVideo instanceof Blob) {
-      const mimeType = inviteVideo.type;
-      if (mimeType.startsWith('image/')) {
-        extension = mimeType.split('/')[1] || 'png';
-        // Handle special cases
-        if (extension === 'jpeg') extension = 'jpg';
-      } else if (mimeType === 'video/mp4') {
-        extension = 'mp4';
-      } else {
-        extension = 'webm';
-      }
-    } else {
-      extension = 'mp4';
-    }
+    const extension = getFileExtension(inviteVideo);
     
     // Sanitize names to prevent filename injection
     link.download = `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`;
@@ -123,44 +118,18 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
       let file;
       
       if (inviteVideo instanceof Blob) {
-        // Determine extension and MIME type based on actual blob
-        const mimeType = inviteVideo.type;
-        let extension;
-        
-        if (mimeType.startsWith('image/')) {
-          extension = mimeType.split('/')[1] || 'png';
-          if (extension === 'jpeg') extension = 'jpg';
-        } else if (mimeType === 'video/mp4') {
-          extension = 'mp4';
-        } else {
-          extension = 'webm';
-        }
-        
-        // Sanitize names for filename
+        const extension = getFileExtension(inviteVideo);
         file = new File([inviteVideo], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
-          type: mimeType,
+          type: inviteVideo.type,
         });
-        logger.log("Created file from Blob for sharing", { extension, mimeType });
+        logger.log("Created file from Blob for sharing", { extension, mimeType: inviteVideo.type });
       } else {
-        // Convert URL to blob first
         logger.log("Converting URL to blob for sharing");
         const response = await fetch(inviteVideo);
         const blob = await response.blob();
-        const mimeType = blob.type;
-        let extension;
-        
-        if (mimeType.startsWith('image/')) {
-          extension = mimeType.split('/')[1] || 'png';
-          if (extension === 'jpeg') extension = 'jpg';
-        } else if (mimeType === 'video/mp4') {
-          extension = 'mp4';
-        } else {
-          extension = 'webm';
-        }
-        
-        // Sanitize names for filename
+        const extension = getFileExtension(blob);
         file = new File([blob], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
-          type: mimeType,
+          type: blob.type,
         });
       }
 
@@ -190,7 +159,6 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
     } catch (err) {
       if (err.name !== "AbortError") {
         logger.error("Share failed", err);
-        console.error("Share error:", err);
         // Fallback to WhatsApp
         const text = encodeURIComponent(
           `You're invited to the wedding of ${groomName} & ${brideName}!`
@@ -213,12 +181,13 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, onRese
               alt="Wedding invite preview"
             />
           ) : (
-            <video 
-              src={mediaUrl} 
-              className="invite-video" 
-              controls 
-              autoPlay 
-              loop 
+            <video
+              src={mediaUrl}
+              className="invite-video"
+              controls
+              autoPlay
+              muted
+              loop
               playsInline
             />
           )

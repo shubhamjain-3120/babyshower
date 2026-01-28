@@ -194,7 +194,7 @@ export default function App() {
       setIsMusicPlaying(false);
     } else {
       audioRef.current.play().catch(() => {
-        console.log("[App] Could not play audio");
+        logger.warn("Audio", "Could not play audio");
       });
       setIsMusicPlaying(true);
     }

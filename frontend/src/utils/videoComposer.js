@@ -622,15 +622,8 @@ function logAnimationProgress(elementName, opacity) {
   }
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
+// --- Utility Functions ---
 
-/**
- * Loads an image from URL or data URL with CORS support and timing metrics
- * @param {string} src - Image source (URL or data URL)
- * @returns {Promise<HTMLImageElement>} Promise that resolves to loaded image
- */
 function loadImage(src) {
   const startTime = performance.now();
   const isDataUrl = src.startsWith("data:");
@@ -657,11 +650,6 @@ function loadImage(src) {
   });
 }
 
-/**
- * Loads a video element from URL with CORS support
- * @param {string} src - Video source URL
- * @returns {Promise<HTMLVideoElement>} Promise that resolves to loaded video element
- */
 function loadVideo(src) {
   const startTime = performance.now();
   logger.log("Loading video", { source: src });
@@ -691,11 +679,6 @@ function loadVideo(src) {
   });
 }
 
-/**
- * Loads all required fonts for video canvas rendering
- * Includes AlexBrush, Playfair Display, and Inter fonts
- * @returns {Promise<void>} Promise that resolves when fonts are loaded
- */
 async function loadFonts() {
   const startTime = performance.now();
   logger.log("Loading fonts", {
@@ -728,11 +711,6 @@ async function loadFonts() {
   }
 }
 
-/**
- * Capitalizes the first letter of a string and lowercases the rest
- * @param {string} str - String to capitalize
- * @returns {string} Capitalized string
- */
 function capitalizeFirst(str) {
   if (!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -751,15 +729,7 @@ function calculateOpacity(currentTime, startTime, endTime) {
   return (currentTime - startTime) / (endTime - startTime);
 }
 
-// ============================================================================
-// CHARACTER PLACEMENT
-// ============================================================================
-
-/**
- * Calculates the bounds for character image placement on canvas
- * @param {HTMLImageElement} characterImg - Character image element
- * @returns {{x: number, y: number, width: number, height: number}} Calculated bounds
- */
+// --- Character Placement ---
 function calculateCharacterBounds(characterImg) {
   const targetTop = CANVAS_HEIGHT * LAYOUT_V4.character.topPercent;
   const targetBottom = CANVAS_HEIGHT * LAYOUT_V4.character.bottomPercent;
@@ -796,16 +766,7 @@ function calculateCharacterBounds(characterImg) {
   };
 }
 
-// ============================================================================
-// DRAWING FUNCTIONS
-// ============================================================================
-
-/**
- * Draws a soft elliptical ground shadow beneath the character
- * Creates depth and grounding effect using radial gradient with blur
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {Object} characterBounds - Character position and dimensions
- */
+// --- Drawing Functions ---
 function drawGroundShadow(ctx, characterBounds) {
   const shadow = LAYOUT_V4.shadow;
 
@@ -832,16 +793,6 @@ function drawGroundShadow(ctx, characterBounds) {
   ctx.restore();
 }
 
-/**
- * Creates a premium warm gold linear gradient for text rendering
- * Multi-stop gradient simulates metallic foil texture with highlights
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {number} x - Center X position
- * @param {number} y - Center Y position
- * @param {number} width - Text width
- * @param {number} height - Text height
- * @returns {CanvasGradient} Linear gradient object
- */
 function createPremiumGoldGradient(ctx, x, y, width, height) {
   const gradient = ctx.createLinearGradient(
     x - width / 2,
@@ -861,16 +812,6 @@ function createPremiumGoldGradient(ctx, x, y, width, height) {
   return gradient;
 }
 
-/**
- * Creates a copper brown linear gradient for decorative elements (ampersand)
- * Warmer, more subdued metallic effect compared to gold gradient
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {number} x - Center X position
- * @param {number} y - Center Y position
- * @param {number} width - Element width
- * @param {number} height - Element height
- * @returns {CanvasGradient} Linear gradient object
- */
 function createCopperBrownGradient(ctx, x, y, width, height) {
   const gradient = ctx.createLinearGradient(
     x - width / 2,
@@ -889,18 +830,6 @@ function createCopperBrownGradient(ctx, x, y, width, height) {
   return gradient;
 }
 
-/**
- * Calculates optimal font size to fit text within maximum width
- * Iteratively reduces size from ideal to minimum until text fits
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} text - Text to measure
- * @param {number} maxWidth - Maximum allowed width in pixels
- * @param {number} idealSize - Preferred font size
- * @param {number} minSize - Minimum acceptable font size
- * @param {string} fontFamily - Font family name
- * @param {number} [letterSpacing=0] - Letter spacing multiplier (0-1)
- * @returns {number} Calculated font size
- */
 function calculateFontSize(ctx, text, maxWidth, idealSize, minSize, fontFamily, letterSpacing = 0) {
   let fontSize = idealSize;
 
@@ -919,15 +848,6 @@ function calculateFontSize(ctx, text, maxWidth, idealSize, minSize, fontFamily, 
   return minSize;
 }
 
-/**
- * Draws text with custom letter spacing (tracking)
- * Manually positions each character to achieve precise spacing control
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} text - Text to render
- * @param {number} x - Center X position
- * @param {number} y - Baseline Y position
- * @param {number} letterSpacing - Letter spacing multiplier (0-1)
- */
 function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
   if (letterSpacing <= 0) {
     ctx.fillText(text, x, y);
@@ -953,14 +873,6 @@ function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
   });
 }
 
-/**
- * Draws bride and groom names with premium gold gradient and ampersand
- * Uses royal cursive script (Alex Brush) with optimized sizing and tracking
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} brideName - Bride's name
- * @param {string} groomName - Groom's name
- * @param {number} [opacity=1] - Text opacity for fade-in animation (0-1)
- */
 function drawNamesText(ctx, brideName, groomName, opacity = 1) {
   if (opacity <= 0) return;
   
@@ -1042,12 +954,6 @@ function drawNamesText(ctx, brideName, groomName, opacity = 1) {
   ctx.restore();
 }
 
-/**
- * Formats date string into human-readable display format
- * Converts ISO or standard date strings to "Month Day, Year" format
- * @param {string} dateStr - Input date string (ISO or standard format)
- * @returns {string} Formatted date (e.g., "January 15, 2025") or original if parsing fails
- */
 function formatDateDisplay(dateStr) {
   try {
     const date = new Date(dateStr);
@@ -1067,13 +973,6 @@ function formatDateDisplay(dateStr) {
   }
 }
 
-/**
- * Draws wedding date text with serif typography and subtle shadow
- * Uses Playfair Display font with light brown color scheme
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} dateStr - Wedding date string
- * @param {number} [opacity=1] - Text opacity for fade-in animation (0-1)
- */
 function drawDateText(ctx, dateStr, opacity = 1) {
   if (opacity <= 0) return;
   
@@ -1105,13 +1004,6 @@ function drawDateText(ctx, dateStr, opacity = 1) {
   ctx.restore();
 }
 
-/**
- * Draws wedding venue text with adaptive font sizing
- * Automatically scales font to fit long venue names within canvas width
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} venue - Wedding venue name
- * @param {number} [opacity=1] - Text opacity for fade-in animation (0-1)
- */
 function drawVenueText(ctx, venue, opacity = 1) {
   if (opacity <= 0) return;
   
@@ -1152,9 +1044,7 @@ function drawVenueText(ctx, venue, opacity = 1) {
   ctx.restore();
 }
 
-// ============================================================================
-// FRAME RENDERING
-// ============================================================================
+// --- Frame Rendering ---
 
 /**
  * Draw a single frame with video background, character, and text overlays
@@ -1236,31 +1126,11 @@ function drawFrame(ctx, video, characterImg, characterBounds, brideName, groomNa
   drawVenueText(ctx, venue, venueOpacity);
 }
 
-// ============================================================================
-// MAIN VIDEO COMPOSITION FUNCTION
-// ============================================================================
+// --- Main Video Composition ---
 
 /**
- * Compose a video invite with character and text overlays
- *
- * ALWAYS uses server-side composition for consistent quality across all devices.
- * This resolves Android jerkiness issues caused by device-dependent MediaRecorder behavior.
- *
- * Benefits of server-side composition:
- * - Consistent quality across all devices (Android, iOS, desktop)
- * - No frame drops or jerkiness from device CPU/GPU limitations
- * - Smaller app bundle (no FFmpeg.wasm needed)
- * - Precise frame timing using FFmpeg filter graphs
- * - Full codec support via native FFmpeg
- *
- * @param {Object} params
- * @param {string} params.characterImage - Data URL of character (with transparent bg)
- * @param {string} params.brideName
- * @param {string} params.groomName
- * @param {string} params.date
- * @param {string} params.venue
- * @param {function} params.onProgress - Progress callback (0-100)
- * @returns {Promise<Blob>} - Video blob (MP4 format)
+ * Compose a video invite with character and text overlays.
+ * Uses server-side composition for consistent quality across all devices.
  */
 export async function composeVideoInvite({
   characterImage,
@@ -1284,12 +1154,7 @@ export async function composeVideoInvite({
 
   onProgress(5);
 
-  // Always use server-side composition for consistent quality across all devices
-  // This resolves Android jerkiness issues caused by:
-  // - MediaRecorder API inconsistencies across Android devices
-  // - Canvas capture frame drops on lower-end devices
-  // - WebM codec variations across browsers
-  // - Memory pressure from FFmpeg.wasm + canvas recording
+  // Server-side composition for consistent quality across all devices
   try {
     const mp4Blob = await serverComposeVideo({
       characterImage,
@@ -1324,5 +1189,3 @@ export async function composeVideoInvite({
 export function videoBlobToDataURL(blob) {
   return URL.createObjectURL(blob);
 }
-
-export { LAYOUT_V4 };

@@ -1,22 +1,16 @@
 /**
- * Canvas Composer - Royal Cursive Typography System
- *
- * Typography design:
- * - Royal cursive script (Alex Brush) for couple's names
- * - Names with first letter capitalized for elegant cursive flow
- * - Bride's name first, groom's name second
- * - Names in warm gold gradient, ampersand in copper color
- * - Clean serif (Playfair Display) for date and venue
- * - Precise vertical rhythm with generous whitespace
+ * Canvas Composer - Static invite composition (1080×1920px)
+ * Alex Brush for names, Playfair Display for date/venue
  */
+
+import { createDevLogger } from "./devLogger";
+const logger = createDevLogger("Composer");
 
 // Canvas dimensions for the invite (9:16 aspect ratio)
 const CANVAS_WIDTH = 1080;
 const CANVAS_HEIGHT = 1920;
 
-// ============================================================================
-// LAYOUT SPECIFICATION
-// ============================================================================
+// --- Layout Specification ---
 const LAYOUT_V4 = {
   canvas: {
     width: CANVAS_WIDTH,
@@ -86,9 +80,7 @@ const LAYOUT_V4 = {
   baseFontSize: 50,
 };
 
-// ============================================================================
-// PREMIUM COLOR PALETTE - Warm Metallic Gold with Foil Texture
-// ============================================================================
+// --- Color Palette ---
 const COLORS = {
   // Warm metallic gold palette (richer, warmer tones)
   goldPrimary: "#D4A853",       // Rich warm gold base
@@ -120,23 +112,12 @@ const COLORS = {
   detailsText: "#C9A961",
 };
 
-/**
- * Capitalize the first letter of a string
- */
 function capitalizeFirst(str) {
   if (!str) return str;
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/**
- * Loads an image from a URL with CORS support
- * @param {string} src - Image source URL or data URL
- * @returns {Promise<HTMLImageElement>} Promise that resolves to loaded image
- */
+// --- Utility Functions ---
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -147,11 +128,6 @@ function loadImage(src) {
   });
 }
 
-/**
- * Loads all required fonts for canvas rendering
- * Includes AlexBrush, Playfair Display, Inter, and fallback fonts
- * @returns {Promise<void>} Promise that resolves when fonts are loaded
- */
 async function loadFonts() {
   // Premium typography fonts
   const alexBrush = new FontFace(
@@ -189,28 +165,13 @@ async function loadFonts() {
       if (font) document.fonts.add(font);
     });
 
-    console.log("[Composer] Premium fonts loaded successfully");
+    logger.log("Premium fonts loaded");
   } catch (err) {
-    console.warn("[Composer] Font loading failed, using fallbacks:", err);
+    logger.warn("Font loading failed", err.message);
   }
 }
 
-// ============================================================================
-// TEXT RENDERING WITH PREMIUM TYPOGRAPHY HIERARCHY
-// ============================================================================
-
-/**
- * Calculate font size to fit text within max width
- * Includes letter-spacing compensation for accurate measurement
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} text - Text to measure
- * @param {number} maxWidth - Maximum allowed width in pixels
- * @param {number} idealSize - Preferred font size
- * @param {number} minSize - Minimum acceptable font size
- * @param {string} fontFamily - Font family name
- * @param {number} [letterSpacing=0] - Letter spacing multiplier
- * @returns {number} Calculated font size
- */
+// --- Text Rendering ---
 function calculateFontSize(ctx, text, maxWidth, idealSize, minSize, fontFamily, letterSpacing = 0) {
   let fontSize = idealSize;
 
@@ -230,15 +191,7 @@ function calculateFontSize(ctx, text, maxWidth, idealSize, minSize, fontFamily, 
   return minSize;
 }
 
-/**
- * Draw text with letter-spacing (tracking)
- * Canvas doesn't natively support letter-spacing, so we draw character by character
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} text - Text to render
- * @param {number} x - Center X position
- * @param {number} y - Baseline Y position
- * @param {number} letterSpacing - Letter spacing multiplier
- */
+/** Draw text character-by-character with custom letter spacing */
 function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
   if (letterSpacing <= 0) {
     ctx.fillText(text, x, y);
@@ -266,17 +219,7 @@ function drawTextWithTracking(ctx, text, x, y, letterSpacing) {
   });
 }
 
-/**
- * Draw text with small caps styling
- * First letter of each word is full size, remaining letters are smaller uppercase
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {string} text - Text to render
- * @param {number} x - Center X position
- * @param {number} y - Baseline Y position
- * @param {number} letterSpacing - Letter spacing multiplier
- * @param {string} fontFamily - Font family name
- * @param {string} fontWeight - Font weight (e.g., "400", "500")
- */
+/** Draw text with small caps (first letter full size, rest 75% uppercase) */
 function drawTextWithSmallCaps(ctx, text, x, y, letterSpacing, fontFamily, fontWeight) {
   const baseFontSize = parseFloat(ctx.font);
   const smallCapScale = 0.75; // Small caps letters are 75% of the size
@@ -323,16 +266,7 @@ function drawTextWithSmallCaps(ctx, text, x, y, letterSpacing, fontFamily, fontW
   });
 }
 
-/**
- * Create warm metallic gold gradient with subtle foil-like appearance
- * Very subtle gradient transitions for elegant, non-flat fill
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {number} x - Center X position
- * @param {number} y - Center Y position
- * @param {number} width - Gradient width
- * @param {number} height - Gradient height
- * @returns {CanvasGradient} Linear gradient object
- */
+/** Create warm metallic gold gradient with foil-like appearance */
 function createPremiumGoldGradient(ctx, x, y, width, height) {
   // Diagonal gradient for subtle metallic sheen
   const gradient = ctx.createLinearGradient(
@@ -355,16 +289,7 @@ function createPremiumGoldGradient(ctx, x, y, width, height) {
   return gradient;
 }
 
-/**
- * Draw foil texture overlay for metallic simulation
- * Creates subtle noise pattern that simulates foil/metallic finish
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {number} x - Center X position
- * @param {number} y - Center Y position
- * @param {number} width - Texture width
- * @param {number} height - Texture height
- * @param {number} [intensity=0.08] - Texture intensity (0-1)
- */
+/** Draw foil texture overlay (subtle noise for metallic finish) */
 function drawFoilTexture(ctx, x, y, width, height, intensity = 0.08) {
   // Create offscreen canvas for texture
   const textureCanvas = document.createElement('canvas');
@@ -409,15 +334,6 @@ function drawFoilTexture(ctx, x, y, width, height, intensity = 0.08) {
   ctx.restore();
 }
 
-/**
- * Create warm ivory gradient for supporting text
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context
- * @param {number} x - Center X position
- * @param {number} y - Center Y position
- * @param {number} width - Gradient width
- * @param {number} height - Gradient height
- * @returns {CanvasGradient} Linear gradient object
- */
 function createWarmIvoryGradient(ctx, x, y, width, height) {
   const gradient = ctx.createLinearGradient(
     x - width / 2,
@@ -433,9 +349,6 @@ function createWarmIvoryGradient(ctx, x, y, width, height) {
   return gradient;
 }
 
-/**
- * Create copper brown gradient for names
- */
 function createCopperBrownGradient(ctx, x, y, width, height) {
   const gradient = ctx.createLinearGradient(
     x - width / 2,
@@ -454,9 +367,6 @@ function createCopperBrownGradient(ctx, x, y, width, height) {
   return gradient;
 }
 
-/**
- * Create warm metallic gold gradient for ampersand
- */
 function createAmpersandGoldGradient(ctx, x, y, width, height) {
   const gradient = ctx.createLinearGradient(
     x - width / 2,
@@ -476,11 +386,7 @@ function createAmpersandGoldGradient(ctx, x, y, width, height) {
   return gradient;
 }
 
-/**
- * Draw names with royal cursive Alex Brush font and pink roses
- * Bride's name first, groom's name second, with first letter capitalized
- * Names in warm gold gradient, ampersand in copper
- */
+/** Draw bride & groom names in gold gradient with copper ampersand */
 function drawNamesText(ctx, brideName, groomName, pinkRoseImg) {
   const layout = LAYOUT_V4.names;
   const y = CANVAS_HEIGHT * layout.yPercent;
@@ -586,10 +492,6 @@ function drawNamesText(ctx, brideName, groomName, pinkRoseImg) {
   drawFoilTexture(ctx, CANVAS_WIDTH / 2, y, maxWidth, fontSize * 1.8, 0.06);
 }
 
-/**
- * Format date string to elegant "DD MMMM YYYY" format
- * Uses refined typography with proper spacing
- */
 function formatDateDisplay(dateStr) {
   try {
     const date = new Date(dateStr);
@@ -609,10 +511,6 @@ function formatDateDisplay(dateStr) {
   }
 }
 
-/**
- * Draw date text with Inter Medium - restrained subline
- * Clean humanist sans-serif with warm metallic gold
- */
 function drawDateText(ctx, dateStr) {
   const layout = LAYOUT_V4.date;
   const y = CANVAS_HEIGHT * layout.yPercent;
@@ -645,9 +543,6 @@ function drawDateText(ctx, dateStr) {
   ctx.shadowOffsetY = 0;
 }
 
-/**
- * Draw venue text with Playfair Display - light brown color
- */
 function drawVenueText(ctx, venue) {
   const layout = LAYOUT_V4.venue;
   const y = CANVAS_HEIGHT * layout.yPercent;
@@ -679,13 +574,7 @@ function drawVenueText(ctx, venue) {
   ctx.shadowOffsetY = 0;
 }
 
-// ============================================================================
-// CHARACTER PLACEMENT (Fixed Geometry)
-// ============================================================================
-
-/**
- * Calculate character bounds using fixed layout percentages
- */
+// --- Character Placement ---
 function calculateCharacterBounds(characterImg) {
   // Target area based on fixed percentages
   const targetTop = CANVAS_HEIGHT * LAYOUT_V4.character.topPercent;
@@ -730,13 +619,7 @@ function calculateCharacterBounds(characterImg) {
   };
 }
 
-// ============================================================================
-// GROUND SHADOW
-// ============================================================================
-
-/**
- * Draw soft elliptical shadow under character's feet
- */
+// --- Ground Shadow ---
 function drawGroundShadow(ctx, characterBounds) {
   const shadow = LAYOUT_V4.shadow;
 
@@ -767,15 +650,7 @@ function drawGroundShadow(ctx, characterBounds) {
   ctx.restore();
 }
 
-// ============================================================================
-// BACKGROUND CANVAS
-// ============================================================================
-
-/**
- * Creates a canvas with the background image
- * @param {HTMLImageElement} backgroundImg - Background image to draw
- * @returns {HTMLCanvasElement} Canvas with background rendered
- */
+// --- Background Canvas ---
 function createBackgroundCanvas(backgroundImg) {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_WIDTH;
@@ -802,23 +677,9 @@ function createBackgroundCanvas(backgroundImg) {
   return canvas;
 }
 
-// ============================================================================
-// MAIN COMPOSITION FUNCTION
-// ============================================================================
-
-/**
- * Compose the final wedding invite
- *
- * @param {Object} params
- * @param {string} params.characterImage - Data URL of character (with transparent bg)
- * @param {string} params.brideName
- * @param {string} params.groomName
- * @param {string} params.date
- * @param {string} params.venue
- * @returns {Promise<string>} - Data URL of final PNG
- */
+// --- Main Composition ---
 export async function composeInvite({ characterImage, brideName, groomName, date, venue }) {
-  console.log("[Composer] Starting Phase 4 composition...");
+  logger.log("Starting composition");
   const startTime = performance.now();
 
   // Load fonts
@@ -831,12 +692,12 @@ export async function composeInvite({ characterImage, brideName, groomName, date
     loadImage("/assets/pink-rose.svg").catch(() => null),
   ]);
 
-  console.log(`[Composer] Images loaded: ${(performance.now() - startTime).toFixed(0)}ms`);
+  logger.log("Images loaded", { duration: `${(performance.now() - startTime).toFixed(0)}ms` });
 
   // Calculate character placement using fixed layout
   const characterBounds = calculateCharacterBounds(characterImg);
 
-  console.log(`[Composer] Character bounds:`, characterBounds);
+  logger.log("Character bounds", characterBounds);
 
   // Create final canvas
   const canvas = document.createElement("canvas");
@@ -844,20 +705,14 @@ export async function composeInvite({ characterImage, brideName, groomName, date
   canvas.height = CANVAS_HEIGHT;
   const ctx = canvas.getContext("2d");
 
-  // =========================================================================
-  // LAYER 1: Background
-  // =========================================================================
+  // Layer 1: Background
   const backgroundCanvas = createBackgroundCanvas(backgroundImg);
   ctx.drawImage(backgroundCanvas, 0, 0);
 
-  // =========================================================================
-  // LAYER 2: Ground Shadow
-  // =========================================================================
+  // Layer 2: Ground shadow
   drawGroundShadow(ctx, characterBounds);
 
-  // =========================================================================
-  // LAYER 3: Character
-  // =========================================================================
+  // Layer 3: Character
   ctx.drawImage(
     characterImg,
     characterBounds.x,
@@ -866,30 +721,14 @@ export async function composeInvite({ characterImage, brideName, groomName, date
     characterBounds.height
   );
 
-  // =========================================================================
-  // LAYER 4: Premium Typography Overlays
-  // =========================================================================
-
-  // Names - Royal cursive Alex Brush font with pink roses
-  // Bride's name first, groom's second, both in lowercase
-  // Pink rose before bride's name, pink rose after groom's name
-  // Names in warm gold gradient, ampersand in copper
+  // Layer 4: Typography overlays
   drawNamesText(ctx, brideName, groomName, pinkRoseImg);
-
-  // Date - Restrained subline (Inter Medium, soft gold)
-  // Clean humanist sans-serif with wide letter-spacing
   drawDateText(ctx, date);
-
-  // Venue - Minimal supporting text (Inter Regular, warm ivory-gold)
-  // Subtle presence with refined tracking
   drawVenueText(ctx, venue);
 
   const totalTime = performance.now() - startTime;
-  console.log(`[Composer] Composition complete: ${totalTime.toFixed(0)}ms`);
+  logger.log("Composition complete", { duration: `${totalTime.toFixed(0)}ms` });
 
   // Export as PNG
   return canvas.toDataURL("image/png", 1.0);
 }
-
-// Export layout config for debugging
-export { LAYOUT_V4 };

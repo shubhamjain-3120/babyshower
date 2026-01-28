@@ -54,7 +54,7 @@ function loadCachedFormData() {
       return JSON.parse(cached);
     }
   } catch (e) {
-    console.warn("Failed to load cached form data:", e);
+    logger.warn("Cache", "Failed to load cached form data");
   }
   return null;
 }
@@ -64,7 +64,7 @@ function saveCachedFormData(data) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
   } catch (e) {
-    console.warn("Failed to save form data to cache:", e);
+    logger.warn("Cache", "Failed to save form data to cache");
   }
 }
 
@@ -112,7 +112,6 @@ export default function InputScreen({
   const [skipImageGeneration, setSkipImageGeneration] = useState(false);
   const [skipBackgroundRemoval, setSkipBackgroundRemoval] = useState(false);
   const [skipVideoGeneration, setSkipVideoGeneration] = useState(false);
-  const [forceServerConversion, setForceServerConversion] = useState(false);
 
 
   // Voice input
@@ -177,7 +176,6 @@ export default function InputScreen({
       skipImageGeneration: devMode ? skipImageGeneration : false,
       skipBackgroundRemoval: devMode ? skipBackgroundRemoval : false,
       skipVideoGeneration: devMode ? skipVideoGeneration : false,
-      forceServerConversion: devMode ? forceServerConversion : false,
     };
 
     logger.log("Form validation passed, showing confirmation modal", {
@@ -190,7 +188,6 @@ export default function InputScreen({
       skipImageGeneration: formData.skipImageGeneration,
       skipBackgroundRemoval: formData.skipBackgroundRemoval,
       skipVideoGeneration: formData.skipVideoGeneration,
-      forceServerConversion: formData.forceServerConversion,
       photoSize: photo ? `${(photo.size / 1024).toFixed(1)} KB` : null,
     });
 
@@ -462,17 +459,6 @@ export default function InputScreen({
                   </button>
                 </div>
 
-                <div className="dev-toggle-row">
-                  <span className="dev-toggle-label">Force Server FFmpeg</span>
-                  <button
-                    type="button"
-                    className={`toggle-switch ${forceServerConversion ? 'toggle-on' : ''}`}
-                    onClick={() => setForceServerConversion(!forceServerConversion)}
-                    aria-label="Toggle force server-side video conversion"
-                  >
-                    <span className="toggle-knob" />
-                  </button>
-                </div>
               </div>
               
             </div>

@@ -22,13 +22,7 @@ const logger = createDevLogger("Server");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-/**
- * Validate file is actually an image by checking magic bytes (file signature).
- * More secure than MIME type validation which can be spoofed.
- *
- * @param {Buffer} buffer - File buffer to validate
- * @returns {boolean} True if buffer contains valid image format (JPEG/PNG/GIF/WebP)
- */
+/** Validate image by checking magic bytes (JPEG/PNG/GIF/WebP) */
 function isValidImageBuffer(buffer) {
   if (!buffer || buffer.length < 4) return false;
 
@@ -50,12 +44,7 @@ function isValidImageBuffer(buffer) {
   return false;
 }
 
-/**
- * Validate file is actually a WebM video by checking magic bytes (file signature).
- *
- * @param {Buffer} buffer - File buffer to validate
- * @returns {boolean} True if buffer contains valid WebM format (EBML header)
- */
+/** Validate WebM by checking EBML magic bytes */
 function isValidWebMBuffer(buffer) {
   if (!buffer || buffer.length < 4) return false;
 
@@ -63,6 +52,18 @@ function isValidWebMBuffer(buffer) {
 
   // WebM files start with EBML header: 0x1A 0x45 0xDF 0xA3
   return bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3;
+}
+
+function validatePhotoUpload(photo, requestId) {
+  if (!photo) {
+    logger.warn(`[${requestId}] Validation failed`, "No photo provided");
+    return { valid: false, status: 400, error: "Couple photo is required" };
+  }
+  if (!isValidImageBuffer(photo.buffer)) {
+    logger.warn(`[${requestId}] Validation failed`, "Invalid image content");
+    return { valid: false, status: 400, error: "Invalid image file. Please upload a valid JPEG, PNG, GIF, or WebP image." };
+  }
+  return { valid: true };
 }
 
 // Configure multer for memory storage (images)
@@ -167,32 +168,15 @@ app.post(
     try {
       const photo = req.file;
 
-      // Validate input - require couple photo
-      if (!photo) {
-        logger.warn(`[${requestId}] Validation failed`, "No photo provided");
-        return res.status(400).json({
-          success: false,
-          error: "Couple photo is required",
-        });
-      }
-
-      // Security: Validate file content (magic bytes) - not just MIME type
-      if (!isValidImageBuffer(photo.buffer)) {
-        logger.warn(`[${requestId}] Validation failed`, "Invalid image file content");
-        return res.status(400).json({
-          success: false,
-          error: "Invalid image file. Please upload a valid JPEG, PNG, GIF, or WebP image.",
-        });
-      }
+      const validation = validatePhotoUpload(photo, requestId);
+      if (!validation.valid) return res.status(validation.status).json({ success: false, error: validation.error });
 
       logger.log(`[${requestId}] [EXTRACTION] Step 1: Photo received, preparing for extraction`, {
         photoSize: `${(photo.size / 1024).toFixed(1)} KB`,
         photoMimeType: photo.mimetype,
       });
-      console.log(`[Backend] [EXTRACTION] Step 1: Photo received, preparing for extraction`);
 
       logger.log(`[${requestId}] [EXTRACTION] Step 2: Calling analyzePhoto function...`);
-      console.log(`[Backend] [EXTRACTION] Step 2: Calling analyzePhoto function...`);
 
       // Extract features using photo analysis (extraction only)
       const descriptions = await analyzePhoto(photo, requestId);
@@ -203,7 +187,6 @@ app.post(
         hasBride: !!descriptions.bride,
         hasGroom: !!descriptions.groom,
       });
-      console.log(`[Backend] [EXTRACTION] Step 3: Extraction complete - sending response to frontend (${totalDuration.toFixed(0)}ms)`);
 
       res.json({
         success: true,
@@ -212,7 +195,6 @@ app.post(
     } catch (error) {
       const totalDuration = performance.now() - startTime;
       logger.error(`[${requestId}] Extraction failed after ${totalDuration.toFixed(0)}ms`, error);
-      console.error("[Server] Extraction error:", error);
 
       res.status(500).json({
         success: false,
@@ -240,29 +222,13 @@ app.post(
     try {
       const photo = req.file;
 
-      // Validate input - require couple photo
-      if (!photo) {
-        logger.warn(`[${requestId}] Validation failed`, "No photo provided");
-        return res.status(400).json({
-          success: false,
-          error: "Couple photo is required",
-        });
-      }
-
-      // Security: Validate file content (magic bytes) - not just MIME type
-      if (!isValidImageBuffer(photo.buffer)) {
-        logger.warn(`[${requestId}] Validation failed`, "Invalid image file content");
-        return res.status(400).json({
-          success: false,
-          error: "Invalid image file. Please upload a valid JPEG, PNG, GIF, or WebP image.",
-        });
-      }
+      const validation = validatePhotoUpload(photo, requestId);
+      if (!validation.valid) return res.status(validation.status).json({ success: false, error: validation.error });
 
       logger.log(`[${requestId}] Step 1: Starting generation pipeline`, {
         photoSize: `${(photo.size / 1024).toFixed(1)} KB`,
         photoMimeType: photo.mimetype,
       });
-      console.log(`[Server] Generating wedding portrait from couple photo`);
 
       // Generate characters using Gemini (extracts features then generates)
       const result = await generateWeddingCharacters(photo, requestId);
@@ -288,7 +254,6 @@ app.post(
     } catch (error) {
       const totalDuration = performance.now() - startTime;
       logger.error(`[${requestId}] Generation failed after ${totalDuration.toFixed(0)}ms`, error);
-      console.error("[Server] Generation error:", error);
 
       // After max retries, return error to client
       res.status(500).json({
@@ -348,16 +313,19 @@ app.post(
       // Write WebM to temp file
       await fs.writeFile(inputPath, video.buffer);
 
-      // Run FFmpeg conversion
-      // -i: input file
-      // -c:v libx264: H.264 video codec
-      // -preset ultrafast: fastest encoding (good enough quality for our use case)
-      // -crf 23: quality level (lower = better, 23 is default)
-      // -c:a aac: AAC audio codec
-      // -b:a 96k: audio bitrate
-      // -movflags +faststart: optimize for web streaming
-      // -pix_fmt yuv420p: ensure compatibility with all players
-      const ffmpegCmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -crf 23 -c:a aac -b:a 96k -movflags +faststart -pix_fmt yuv420p "${outputPath}"`;
+      // H.264 + AAC, ultrafast preset, web-optimized
+        const ffmpegCmd = `ffmpeg -y -i "${inputPath}" \
+        -c:v libx264 \
+        -preset veryfast \
+        -crf 36 \
+        -maxrate 600k \
+        -bufsize 1200k \
+        -bf 0 \
+        -pix_fmt yuv420p \
+        -c:a aac -b:a 96k \
+        -movflags +faststart \
+        "${outputPath}"`;
+
 
       logger.log(`[${requestId}] Running FFmpeg conversion`, { command: ffmpegCmd });
       const conversionStart = performance.now();
@@ -412,7 +380,6 @@ app.post(
     } catch (error) {
       const totalDuration = performance.now() - startTime;
       logger.error(`[${requestId}] Video conversion failed after ${totalDuration.toFixed(0)}ms`, error);
-      console.error("[Server] Video conversion error:", error);
 
       res.status(500).json({
         success: false,
@@ -514,10 +481,7 @@ app.post(
       const dateText = escapeText(date);
       const venueText = escapeText(venue);
 
-      // Build FFmpeg filter complex (no fades for lower memory usage)
-      // Layer 1: Scale video to canvas size
-      // Layer 2: Overlay character image
-      // Layer 3: Draw text overlays
+      // Layers: scaled video → character overlay → text overlays
       let filterComplex = `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}[bg];`;
 
       if (characterImage) {
@@ -539,11 +503,12 @@ app.post(
       filterComplex += `[v2]drawtext=fontfile='${playfairFont}':text='${venueText}':fontsize=${textFontSize}:fontcolor=0x8B7355:x=(w-text_w)/2:y=${venueY}[vout]`;
 
       // Build FFmpeg command
+      // Use explicit -t on looped image input to avoid infinite stream + malformed moov atom
       const inputs = characterImage
-        ? `-i "${backgroundVideoPath}" -loop 1 -i "${characterPath}"`
+        ? `-i "${backgroundVideoPath}" -loop 1 -t 15 -i "${characterPath}"`
         : `-i "${backgroundVideoPath}"`;
 
-      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset ultrafast -threads 4 -crf 32 -maxrate 800k -bufsize 1600k -c:a aac -b:a 96k -movflags +faststart -pix_fmt yuv420p -shortest "${outputPath}"`;
+      const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset ultrafast -threads 4 -crf 32 -maxrate 800k -bufsize 1600k -c:a aac -b:a 96k -pix_fmt yuv420p -movflags +faststart -shortest "${outputPath}"`;
 
       logger.log(`[${requestId}] Running FFmpeg composition`, {
         command: ffmpegCmd.slice(0, 200) + "...",
@@ -603,7 +568,6 @@ app.post(
     } catch (error) {
       const totalDuration = performance.now() - startTime;
       logger.error(`[${requestId}] Video composition failed after ${totalDuration.toFixed(0)}ms`, error);
-      console.error("[Server] Video composition error:", error);
 
       res.status(500).json({
         success: false,
@@ -616,7 +580,6 @@ app.post(
 // Error handling middleware
 app.use((err, req, res, next) => {
   logger.error("Unhandled error", err);
-  console.error("[Server] Error:", err);
   res.status(500).json({
     success: false,
     error: err.message || "Internal server error",
