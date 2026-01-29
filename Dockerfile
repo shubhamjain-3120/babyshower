@@ -1,7 +1,7 @@
-FROM node:18-alpine
+FROM node:18-slim
 
 # Install FFmpeg (required for server-side video composition)
-RUN apk add --no-cache ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

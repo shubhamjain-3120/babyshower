@@ -21,7 +21,7 @@ const execAsync = promisify(exec);
 const logger = createDevLogger("Server");
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 /** Validate image by checking magic bytes (JPEG/PNG/GIF/WebP) */
 function isValidImageBuffer(buffer) {
