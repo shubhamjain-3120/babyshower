@@ -106,7 +106,7 @@ export default function LoadingScreen({ completed = false, onCancel }) {
     let delay;
     if (progress < 90) {
       // 0-90%: Random delay between 1-3 seconds
-      delay = 1000 + Math.random() * 2000; // 1000ms to 3000ms
+      delay = 1000 // 1000ms to 3000ms
     } else {
       // 90-98%: Fixed 5 second delay
       delay = 5000;

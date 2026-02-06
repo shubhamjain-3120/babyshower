@@ -1,10 +1,12 @@
 /**
  * Client-side rate limiting utility
  * Tracks generation count per week using localStorage
- * 
+ *
  * Note: This is a soft limit - users can bypass by clearing localStorage.
  * For actual abuse prevention, server-side enforcement is required.
  */
+
+import { isDevMode } from './devLogger';
 
 const STORAGE_KEY = 'wedding-invite-rate-limit';
 const MAX_GENERATIONS = 10;
@@ -15,6 +17,16 @@ const WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
  * @returns {{ count: number, remaining: number, resetAt: number, canGenerate: boolean }}
  */
 export function getRateLimitState() {
+  // Skip rate limiting in dev mode
+  if (isDevMode()) {
+    return {
+      count: 0,
+      remaining: 999,
+      resetAt: Date.now() + WINDOW_MS,
+      canGenerate: true,
+    };
+  }
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -46,7 +58,7 @@ export function getRateLimitState() {
   } catch (e) {
     console.warn('[RateLimit] Failed to read state:', e);
   }
-  
+
   // Initialize fresh state
   const newState = {
     count: 0,
@@ -57,7 +69,7 @@ export function getRateLimitState() {
   } catch (e) {
     console.warn('[RateLimit] Failed to initialize state:', e);
   }
-  
+
   return {
     count: 0,
     remaining: MAX_GENERATIONS,
@@ -72,16 +84,21 @@ export function getRateLimitState() {
  * @returns {{ count: number, remaining: number, resetAt: number, canGenerate: boolean }}
  */
 export function incrementGenerationCount() {
+  // Skip rate limiting in dev mode
+  if (isDevMode()) {
+    return getRateLimitState();
+  }
+
   try {
     const state = getRateLimitState();
     const newCount = state.count + 1;
-    
+
     const newState = {
       count: newCount,
       resetAt: state.resetAt,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
-    
+
     return {
       count: newCount,
       remaining: Math.max(0, MAX_GENERATIONS - newCount),

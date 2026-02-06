@@ -214,7 +214,7 @@ export default function InputScreen({
           <div className="confirmation-modal">
             {/* Header */}
             <h2 className="modal-header">
-              कृपया विवरण की पुष्टि करें
+             कृपया जानकारी की पुष्टि कर लें
               <span className="modal-header-english">(Please Confirm Details)</span>
             </h2>
 
@@ -274,7 +274,7 @@ export default function InputScreen({
                   setValidatedFormData(null);
                 }}
               >
-                संपादित करें (Edit Details)
+                बदलें (Edit Details)
               </button>
             </div>
           </div>
@@ -292,7 +292,7 @@ export default function InputScreen({
       <form onSubmit={handleSubmit} className="form">
         {/* Bride Name */}
         <div className="form-group">
-          <label htmlFor="brideName">Bride Name / दुल्हन का नाम</label>
+          <label htmlFor="brideName">दुल्हन का नाम (Bride Name)</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -329,7 +329,7 @@ export default function InputScreen({
 
         {/* Bride's Parent Name */}
         <div className="form-group">
-          <label htmlFor="brideParentName">Bride's Parent's Name / दुल्हन के पिता का नाम</label>
+          <label htmlFor="brideParentName">दुल्हन के पिता का नाम (Bride's Parent's Name)</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -366,7 +366,7 @@ export default function InputScreen({
 
         {/* Groom Name */}
         <div className="form-group">
-          <label htmlFor="groomName">Groom Name / दूल्हे का नाम</label>
+          <label htmlFor="groomName">दूल्हे का नाम (Groom Name)</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -403,7 +403,7 @@ export default function InputScreen({
 
         {/* Groom's Parent Name */}
         <div className="form-group">
-          <label htmlFor="groomParentName">Groom's Parent's Name / दूल्हे के पिता का नाम</label>
+          <label htmlFor="groomParentName">दूल्हे के पिता का नाम (Groom's Parent's Name)</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -440,19 +440,39 @@ export default function InputScreen({
 
         {/* Time Section */}
         <div className="form-group">
-          <label htmlFor="weddingTime">Wedding Time / शादी का समय</label>
-          <input
-            type="time"
+          <label htmlFor="weddingTime">शादी का समय (Wedding Time)</label>
+          <select
             id="weddingTime"
             value={weddingTime}
             onChange={(e) => setWeddingTime(e.target.value)}
             required
-          />
+          >
+            <option value="">Select time</option>
+            <option value="6am">6am</option>
+            <option value="7am">7am</option>
+            <option value="8am">8am</option>
+            <option value="9am">9am</option>
+            <option value="10am">10am</option>
+            <option value="11am">11am</option>
+            <option value="12pm">12pm</option>
+            <option value="1pm">1pm</option>
+            <option value="2pm">2pm</option>
+            <option value="3pm">3pm</option>
+            <option value="4pm">4pm</option>
+            <option value="5pm">5pm</option>
+            <option value="6pm">6pm</option>
+            <option value="7pm">7pm</option>
+            <option value="8pm">8pm</option>
+            <option value="9pm">9pm</option>
+            <option value="10pm">10pm</option>
+            <option value="11pm">11pm</option>
+            <option value="12am">12am</option>
+          </select>
         </div>
 
         {/* Date Section */}
         <div className="form-group">
-          <label htmlFor="weddingDate">Wedding Date / शादी की तारीख</label>
+          <label htmlFor="weddingDate">शादी की तारीख (Wedding Date)</label>
           <input
             type="date"
             id="weddingDate"
@@ -469,7 +489,7 @@ export default function InputScreen({
 
         {/* Venue Section */}
         <div className="form-group">
-          <label htmlFor="venue">Venue & City / स्थान</label>
+          <label htmlFor="venue">स्थान (Venue & City)</label>
           <div className="input-with-voice">
             <input
               type="text"

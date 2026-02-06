@@ -253,10 +253,16 @@ app.post(
   }
 );
 
-// Main generation endpoint with rate limiting
+// Main generation endpoint with rate limiting (skip in dev mode)
 app.post(
   "/api/generate",
-  generateLimiter,
+  (req, res, next) => {
+    // Skip rate limiting in dev mode
+    if (isDevMode()) {
+      return next();
+    }
+    return generateLimiter(req, res, next);
+  },
   upload.single("photo"),
   async (req, res) => {
     const requestId = Date.now().toString(36);
@@ -609,10 +615,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', async () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
   console.log(`[Server] Dev Mode: ${isDevMode() ? "ENABLED" : "disabled"}`);
   console.log(`[Server] Gemini API Key: ${process.env.GEMINI_API_KEY ? "Set" : "NOT SET"}`);
+  console.log(`[Server] Photo Analysis Provider: ${process.env.PHOTO_ANALYSIS_PROVIDER || "gpt"}`);
 
   // Check critical assets
   const assetPaths = {
@@ -637,3 +644,21 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.error('[Server] ✗ FFmpeg NOT FOUND');
   }
 });
+
+// Graceful shutdown for node --watch and CTRL+C
+function gracefulShutdown(signal) {
+  console.log(`\n[Server] Received ${signal}, closing server gracefully...`);
+  server.close(() => {
+    console.log('[Server] Server closed. Exiting process.');
+    process.exit(0);
+  });
+
+  // Force close after 5 seconds if graceful shutdown fails
+  setTimeout(() => {
+    console.error('[Server] Forced shutdown after timeout');
+    process.exit(1);
+  }, 5000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Wedding Invite Generator MVP - A Progressive Web App for generating personalized Marwadi wedding invitations with AI-generated couple portraits. Uses Google's Gemini AI for photo analysis and Imagen 3 for portrait generation, with a React frontend and Node.js Express backend. Targets iOS/Android via Capacitor and web (PWA).
+Wedding Invite Generator MVP - A Progressive Web App for generating personalized Marwadi wedding invitations with AI-generated couple portraits. Uses GPT-4o or Gemini for photo analysis and Imagen 3 for portrait generation, with a React frontend and Node.js Express backend. Targets iOS/Android via Capacitor and web (PWA).
 
 ## Commands
 
@@ -33,7 +33,7 @@ Run backend (terminal 1) and frontend (terminal 2) simultaneously. Frontend prox
 
 ### Generation Pipeline
 ```
-1. Photo Upload → 2. Gemini/OpenAI analyzes photo → 3. Imagen 3 generates portrait
+1. Photo Upload → 2. GPT-4o or Gemini analyzes photo → 3. Imagen 3 generates portrait
 → 4. @imgly/background-removal (client-side) → 5. FFmpeg video composition
 → 6. ResultScreen displays + share
 ```
@@ -64,12 +64,13 @@ Run backend (terminal 1) and frontend (terminal 2) simultaneously. Frontend prox
 
 ### Backend
 ```bash
-GEMINI_API_KEY=...              # Required: Google Gemini API key
-PORT=3001                       # Express server port
-GOOGLE_GENAI_USE_VERTEXAI=true  # For Imagen 3 via Vertex AI
-GOOGLE_CLOUD_PROJECT=...        # GCP project ID
-OPENAI_API_KEY=...              # Optional: photo analysis fallback
-DEV_MODE=true                   # Enhanced logging
+GEMINI_API_KEY=...                  # Required: Google Gemini API key
+PORT=3001                           # Express server port
+GOOGLE_GENAI_USE_VERTEXAI=true      # For Imagen 3 via Vertex AI
+GOOGLE_CLOUD_PROJECT=...            # GCP project ID
+OPENAI_API_KEY=...                  # Required if using GPT for photo analysis
+PHOTO_ANALYSIS_PROVIDER=gpt         # Photo analysis provider: "gpt" (default) or "gemini"
+DEV_MODE=true                       # Enhanced logging
 ```
 
 ### Frontend

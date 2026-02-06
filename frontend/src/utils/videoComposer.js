@@ -550,9 +550,9 @@ const COLORS = SHARED_COLORS;
 // Animation timing for staggered fade-in (in seconds)
 // Total animation sequence: 9 seconds
 const ANIMATION = {
-  names: { start: 5, end: 6 },        // 4.5-5s: Names fade in (0.5s duration)
-  date: { start: 5, end: 6 },         // 4.5-5s: Date fades in (0.5s duration)
-  venue: { start: 5, end: 6 },        // 4.5-5s: Venue fades in (0.5s duration)
+  names: { start: 7, end: 9 },        // 4.5-5s: Names fade in (0.5s duration)
+  date: { start: 7, end: 9 },         // 4.5-5s: Date fades in (0.5s duration)
+  venue: { start: 7, end: 9 },        // 4.5-5s: Venue fades in (0.5s duration)
   character: { start: 5, end: 6 }     // 7-8s: Character fades in (1s duration)
 };
 
