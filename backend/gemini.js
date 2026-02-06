@@ -67,9 +67,9 @@ async function analyzePhotoWithGPT(photo, requestId = "") {
 {
   "bride": {
     "height": { "primary": "" },
-    "coloring": { "primary": "" },
+    "skin_color": { "primary": "" },
     "hairstyle": { "primary": "" },
-    "body_type": { "primary": "" },
+    "body_shape": { "primary": "" },
     "face_shape": { "primary": "" },
     "spectacles": { "primary": "" },
     "hair_color": { "primary": "" }
@@ -208,41 +208,43 @@ async function analyzePhotoWithGemini(photo, requestId = "") {
     photoBufferLen: photo?.buffer?.length,
   });
 
-  const analysisPrompt = `Role: Illustrator's Assistant. Analyze the image to generate specific artistic reference data for a stylized wedding illustration (Bride/Groom).
+  const analysisPrompt = `Role: Technical Art Director. Analyze the image to extract strict physical attribute data for a Studio Ghibli style illustration.
 
 ### Constraints
 1. Output valid JSON only.
-2. NO "unknown", "hidden", or "null" values. Infer from context/proportions if partially visible.
+2. NO "unknown" or "null" values. Infer from context/proportions if partially visible.
 3. Use the specific vocabulary lists provided below.
 
 ### Reference Criteria
 
-**1. Height:** [very short, short, average, tall, very tall] (Relative to each other).
-**2. Coloring:** format as "[Base Tone] with [Palette]".
-   - Base: very fair, fair, light, light-medium, medium, medium-tan, tan, olive, caramel, brown, dark/deep/rich brown.
-   - Palette: warm (golden/peachy), cool (pink/rosy), neutral, olive-toned.
+**1. Height:** [Very Short, Short, Average, Tall, Very Tall] (Relative to each other).
+**2. Skin Tone:** Select the closest match:
+   - [Very Fair, Fair, Light, Medium, Olive, Tan, Brown, Dark Brown, Deep Black].
+   - *Note: Focus on the base value suitable for cel-shaded coloring.*
 **3. Hairstyle:** Detailed description of Length, Style, Texture, and Volume.
-   - Groom specific: Fade, undercut, side-part, etc.
-**4. Body Type:** [slim, athletic, average, curvy, stocky, broad].
-**5. Face Shape:** [oval, round, square, heart, diamond, oblong].
-**6. Facial Hair (Groom):** [Clean-shaven, Light/Heavy stubble, Short/Medium/Full beard, Goatee, Mustache only, Soul patch, Van Dyke, Anchor].
-**7. Spectacles:** [none, rectangular, round, oval, cat-eye, aviator, rimless, half-rim]. Note material/color if present.
-**8. Hair Color:** [black, dark brown, brown, light brown, gray, salt and pepper, not visible]. Describe the dominant natural hair color visible in the photo. If hair is covered (hijab, turban, etc.), use "not visible".
+   - Groom specific: Fade, undercut, side-part, slick-back, etc.
+**4. Body Shape:** [Slim, Athletic, Average, Curvy, Stocky, Broad, Soft].
+**5. Face Shape:** [Oval, Round, Square, Heart, Diamond, Oblong].
+**6. Facial Hair (Groom):** [Clean-shaven, Stubble, Short Beard, Full Beard, Goatee, Mustache, Soul patch].
+**7. Spectacles:** [none, rectangular frames, round frames, oval frames, cat-eye frames, aviator frames, rimless glasses]. 
+   - *CRITICAL:* If no glasses are clearly visible, output "none".
+**8. Hair Color:** [Black, Dark Brown, Brown, Auburn, Red, Blonde, Gray, White]. 
+   - *Note: Identify the dominant natural hair color.*
 
 ### Output JSON Structure
 {
   "bride": {
     "height": { "primary": "" },
-    "coloring": { "primary": "" },
+    "skin_color": { "primary": "" }, // Renamed from 'coloring' to match Generation
     "hairstyle": { "primary": "" },
-    "body_type": { "primary": "" },
+    "body_shape": { "primary": "" }, // Renamed from 'body_type' to match Generation
     "face_shape": { "primary": "" },
     "spectacles": { "primary": "" },
     "hair_color": { "primary": "" }
   },
   "groom": {
     "height": { "primary": "" },
-    "coloring": { "primary": "" },
+    "skin_color": { "primary": "" }, // Renamed from 'coloring' to match Generation
     "hairstyle": { "primary": "" },
     "body_shape": { "primary": "" },
     "facial_hair_style": { "primary": "" },
@@ -251,8 +253,8 @@ async function analyzePhotoWithGemini(photo, requestId = "") {
     "hair_color": { "primary": "" }
   }
 }
-
 `;
+
 
   // Build image content for Gemini
   const imagePart = {
@@ -430,81 +432,71 @@ async function generateWithGemini(descriptions, requestId = "") {
     return attr.primary || fallback;
   };
 
-  const prompt = `(Masterpiece), Studio Ghibli art style.
+    // HELPER: The "Pink Elephant" Fix
+    const getEyeRegionPrompt = (spectaclesRaw) => {
+      const specs = getPrimary(spectaclesRaw, 'none');
 
-CRITICAL RULE: Physical traits (Skin, Face, Body, Glasses, facial hair) must be EXACT matches, overriding style defaults.
+      if (specs === 'none') {
+        // STRATEGY: Silence + Positive Anatomy
+        // 1. Don't mention "glasses" or "eyewear".
+        // 2. Force the renderer to draw skin where the bridge would be.
+        return "Clear, unobstructed view of the bridge of the nose and cheeks. Bare face.";
+      } else {
+        // If glasses exist, strictly enforce them.
+        return `Wearing ${specs}. (Strict Rule: Must draw exactly these glasses).`;
+      }
+    };
 
-CRITICAL GLASSES RULE: If "NONE" is specified for glasses below, DO NOT draw any eyewear, spectacles, or frames whatsoever. This overrides all other instructions.
+    const prompt = `
+    # ART STYLE
+    Studio Ghibli anime style (Hand-drawn aesthetic, cel shading).
+    (Masterpiece), High Definition.
 
-CRITICAL FACIAL EXPRESSION: Both Bride and Groom must have a warm joyous smile (gentle upturned lips, calm relaxed eyes). This is mandatory and must not be neutral, serious, or exaggerated.
+    # SCENE
+    Full-body shot, Bride and Groom standing side-by-side, holding hands, front-facing.
+    Background: Pure white (#FFFFFF).
 
-[SCENE]: Full-body shot, Bride and Groom standing side-by-side, holding hands, front-facing.
+    # SUBJECT 1: BRIDE
+    - Expression: Warm, joyous smile (gentle upturned lips).
+    - Skin Tone: ${getPrimary(bride?.skin_color)}
+    - Face Shape: ${getPrimary(bride?.face_shape)}
+    - Eye Region: ${getEyeRegionPrompt(bride?.spectacles)} <--- LOGIC APPLIED HERE
+    - Hair: ${getPrimary(bride?.hairstyle)}
+    - Body: ${getPrimary(bride?.body_shape)}
+    - Attire: Blush pink Lehenga Choli, floral embroidery.
 
-[BACKGROUND]: Pure white background only. No shadows, no props.
+    # SUBJECT 2: GROOM
+    - Expression: Warm, joyous smile (gentle upturned lips).
+    - Skin Tone: ${getPrimary(groom?.skin_color)}
+    - Face Shape: ${getPrimary(groom?.face_shape)}
+    - Eye Region: ${getEyeRegionPrompt(groom?.spectacles)} <--- LOGIC APPLIED HERE
+    - Hair: ${getPrimary(groom?.hairstyle)}
+    - Facial Hair: ${getPrimary(groom?.facial_hair_style)}
+    - Attire: Cream Jodhpuri Sherwani, teal embroidery.
+    
+    # ATTIRE DETAILS
 
+    Bride: Soft blush pink Lehenga Choli, A-line skirt with rose/teal/gold floral embroidery. Sheer pink dupatta with gold border. Traditional gold jewelry.
 
+    Groom: Cream Jodhpuri Sherwani with teal peacock embroidery on left chest. Maroon velvet dupatta (right shoulder). White Churidar. Golden Mojari shoes.
 
-[SUBJECT 1: BRIDE - STRICT FEATURES]
+    `;
 
-Skin Tone: ${getPrimary(bride?.skin_color)} (exact shade)
+    // System Instruction: Clean and Affirmative
+    // Removed all mentions of "NO GLASSES" to avoid priming the token.
+    const systemInstruction = {
+      role: "system",
+      parts: [{
+        text: "You are an forensic sketch artist. Render attributes EXACTLY as described. \n\nCRITICAL RULES:\n1. SMILE: Characters must have warm smiles.\n2. ANATOMY: Stick to the specific skin tone, hair, and body shape provided.\n3. FIDELITY: If a feature is described (like a beard or specific clothing), draw it. If a feature is omitted or described as 'bare' or 'unobstructed', do not add accessories to that area."
+      }]
+    };
 
-Body Shape: ${getPrimary(bride?.body_shape)}
-
-Face Shape: ${getPrimary(bride?.face_shape)}
-
-Hair: ${getPrimary(bride?.hairstyle)}${bride?.hair_color?.primary ? `, ${getPrimary(bride.hair_color)}` : ''}
-
-Glasses: ${getPrimary(bride?.spectacles, 'none') === 'none' ? 'NONE - DO NOT DRAW ANY GLASSES, SPECTACLES, OR EYEWEAR OF ANY KIND' : getPrimary(bride?.spectacles, 'none')} ${getPrimary(bride?.spectacles, 'none') !== 'none' ? '(Must draw exactly as specified)' : ''}
-
-Height: ${getPrimary(bride?.height)}
-
-
-
-[SUBJECT 2: GROOM - STRICT FEATURES]
-
-Skin Tone: ${getPrimary(groom?.skin_color)} (exact shade)
-
-Body Shape: ${getPrimary(groom?.body_shape)}
-
-Face Shape: ${getPrimary(groom?.face_shape)}
-
-Hair: ${getPrimary(groom?.hairstyle)}${groom?.hair_color?.primary ? `, ${getPrimary(groom.hair_color)}` : ''}
-
-Facial Hair: ${getPrimary(groom?.facial_hair_style)}
-
-Glasses: ${getPrimary(groom?.spectacles, 'none') === 'none' ? 'NONE - DO NOT DRAW ANY GLASSES, SPECTACLES, OR EYEWEAR OF ANY KIND' : getPrimary(groom?.spectacles, 'none')} ${getPrimary(groom?.spectacles, 'none') !== 'none' ? '(Must draw exactly as specified)' : ''}
-
-Height: ${getPrimary(groom?.height)}
-
-
-
-[ATTIRE DETAILS]
-
-Bride: Soft blush pink Lehenga Choli, A-line skirt with rose/teal/gold floral embroidery. Sheer pink dupatta with gold border. Traditional gold jewelry.
-
-Groom: Cream Jodhpuri Sherwani with teal peacock embroidery on left chest. Maroon velvet dupatta (right shoulder). White Churidar. Golden Mojari shoes.
-
-
-
-[STYLE TAGS]
-
-Cel shading, hand-drawn aesthetic, gentle lighting, warm colors, sharp focus, high definition.`;
-
-  logger.log(`[${requestId}] Generating with prompt`, { promptLength: prompt.length });
-
-  // Prepare system instruction
-  const systemInstruction = {
-    role: "system",
-    parts: [{ text: "You are a technical illustrator generating character images. ABSOLUTE OVERRIDE RULE: All explicitly provided character attributes MUST be rendered exactly as specified in the prompt, with zero deviation, inference, beautification, averaging, or stylistic substitution. PRIMARY RULE – PHYSICAL ACCURACY: Render skin tone, body shape, face shape, hair style, height, glasses, hair color and facial hair EXACTLY as described for each subject. CRITICAL GLASSES RULE: When 'NONE' is specified for glasses, you MUST NOT draw any glasses, spectacles, eyewear, or frames of any kind whatsoever. This is a hard requirement - no exceptions. When a specific glasses type IS specified, draw it exactly. Heights must be visually respected relative to each other. No feature blending or ambiguity is allowed. STYLE RULE: Apply Studio Ghibli–inspired cel shading and line work ONLY as a rendering technique. Style must NEVER alter proportions, facial structure, skin tone, or other physical attributes. BACKGROUND RULE: Use a pure white background (#FFFFFF) only. No gradients, no shadows, no props, no environmental elements. EXPRESSION RULE: Both subjects must have joyous, warm smiles with relaxed eyes. Expression must not change facial structure." }]
-  };
-
-  // Prepare generation config
   const generationConfig = {
-    temperature: 0,
-    topP: 0.1,
-    seed: 12345,
-    topK: 1,
-    candidateCount: 1,
+      temperature: 0,
+         topP: 0.1,
+         seed: 12345,
+         topK: 1,
+         candidateCount: 1,
   };
 
   // Log full payload
