@@ -3,41 +3,16 @@ import { trackPageView } from "../utils/analytics";
 
 /**
  * Trivia messages shown during loading to entertain users.
- * Each message has Marwadi and English versions.
  */
 const TRIVIA_MESSAGES = [
-  {
-    mrw: "असली बजट टेस्ट वेन्यू कोनी, मिठाई रो काउंटर है।",
-    en: "The real budget test isn't the venue, it's the मिठाई counter.",
-  },
-  {
-    mrw: "मेहमानां ने वचनां सूं ज़्यादा खाना याद रह जावे।",
-    en: "Guests remember the food longer than the vows.",
-  },
-  {
-    mrw: "थारी थाली में घी कोनी है तो समझ जा, शादी गलत है।",
-    en: "If there's no ghee on your plate, you're probably at the wrong wedding.",
-  },
-  {
-    mrw: "कोई भूखो कोनी जावे, पर कई तो सीधो चाल भी कोनी पावे।",
-    en: "No one leaves hungry, some leave unable to walk properly.",
-  },
-  {
-    mrw: "मारवाड़ी शादी में डाइट प्लानां री छुट्टी हो जावे।",
-    en: "In a Marwadi wedding, diet plans are officially suspended.",
-  },
-  {
-    mrw: "सब सूं लंबी लाइन दूल्हा-दुल्हन री कोनी, मिठाई री होवे।",
-    en: "The longest queue isn't for the couple, it's for the dessert.",
-  },
-  {
-    mrw: "मारवाड़ी शादी में थाली खाली कोनी होवे, बस रीफिलां रा बीच होवे।",
-    en: "At Marwadi weddings, plates are never truly empty — only between refills.",
-  },
-  {
-    mrw: "लोग आशीर्वाद देण आवे, पण रुक्के नाश्ते खातर।",
-    en: "People come for blessings, stay for the snacks.",
-  }
+  "The real budget test isn't the venue, it's the dessert counter.",
+  "Guests remember the food longer than the vows.",
+  "If there's no ghee on your plate, you're probably at the wrong wedding.",
+  "No one leaves hungry, some leave unable to walk properly.",
+  "In a Marwadi wedding, diet plans are officially suspended.",
+  "The longest queue isn't for the couple, it's for the dessert.",
+  "At Marwadi weddings, plates are never truly empty — only between refills.",
+  "People come for blessings, stay for the snacks."
 ];
 
 /**
@@ -133,9 +108,9 @@ export default function LoadingScreen({ completed = false, onCancel }) {
   return (
     <div className="loading-screen">
       <div className="loading-content">
-        {/* Hindi text - unchanged */}
+        {/* Loading text */}
         <h2 className="loading-text">
-          बस 2 मिनट सा आपरो निमंत्रण बन रह्यो है 😊
+          Your invite is being created 😊
         </h2>
 
         {/* Mascot - now primary visual, 1.6× larger */}
@@ -162,8 +137,7 @@ export default function LoadingScreen({ completed = false, onCancel }) {
         </div>
 
         <div className="loading-trivia">
-          <p className="trivia-primary">{TRIVIA_MESSAGES[triviaIndex].mrw}</p>
-          <p className="trivia-secondary">{TRIVIA_MESSAGES[triviaIndex].en}</p>
+          <p className="trivia-primary">{TRIVIA_MESSAGES[triviaIndex]}</p>
         </div>
 
         {/* Cancel button */}
@@ -173,7 +147,7 @@ export default function LoadingScreen({ completed = false, onCancel }) {
             onClick={onCancel}
             type="button"
           >
-            Cancel (रद्द करें)
+            Cancel
           </button>
         )}
       </div>

@@ -214,44 +214,43 @@ export default function InputScreen({
           <div className="confirmation-modal">
             {/* Header */}
             <h2 className="modal-header">
-             कृपया जानकारी की पुष्टि कर लें
-              <span className="modal-header-english">(Please Confirm Details)</span>
+              Please Confirm Details
             </h2>
 
             {/* Photo Preview */}
             <div className="modal-photo-container">
               <img src={URL.createObjectURL(photo)} alt="Couple photo" />
-              <p className="modal-label">फोटो (Photo)</p>
+              <p className="modal-label">Photo</p>
             </div>
 
             {/* Details */}
             <div className="modal-details">
               <div className="modal-detail-item">
-                <span className="modal-detail-label">दुल्हन का नाम (Bride's Name):</span>
+                <span className="modal-detail-label">Bride's Name:</span>
                 <span className="modal-detail-value">{validatedFormData.brideName}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">दुल्हन के पिता का नाम (Bride's Parent's Name):</span>
+                <span className="modal-detail-label">Bride's Parent's Name:</span>
                 <span className="modal-detail-value">{validatedFormData.brideParentName}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">दूल्हे का नाम (Groom's Name):</span>
+                <span className="modal-detail-label">Groom's Name:</span>
                 <span className="modal-detail-value">{validatedFormData.groomName}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">दूल्हे के पिता का नाम (Groom's Parent's Name):</span>
+                <span className="modal-detail-label">Groom's Parent's Name:</span>
                 <span className="modal-detail-value">{validatedFormData.groomParentName}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">समय (Time):</span>
+                <span className="modal-detail-label">Time:</span>
                 <span className="modal-detail-value">{validatedFormData.time}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">शादी की तारीख (Wedding Date):</span>
+                <span className="modal-detail-label">Wedding Date:</span>
                 <span className="modal-detail-value">{validatedFormData.date}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">स्थान (Venue):</span>
+                <span className="modal-detail-label">Venue:</span>
                 <span className="modal-detail-value">{validatedFormData.venue}</span>
               </div>
             </div>
@@ -265,7 +264,7 @@ export default function InputScreen({
                   onGenerate(validatedFormData);
                 }}
               >
-                आगे बढ़ें (Proceed)
+                Proceed
               </button>
               <button
                 className="modal-btn modal-btn-edit"
@@ -274,7 +273,7 @@ export default function InputScreen({
                   setValidatedFormData(null);
                 }}
               >
-                बदलें (Edit Details)
+                Edit Details
               </button>
             </div>
           </div>
@@ -284,15 +283,14 @@ export default function InputScreen({
       {/* Hero headline */}
       <div className="hero-container" style={{ marginBottom: '20px' }}>
         <div className="sample-video-value-hindi">
-          <label>शादी की जानकारी भरें</label>
-          <p className="form-hint">Fill in your wedding details</p>
+          <label>Fill in your wedding details</label>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="form">
         {/* Bride Name */}
         <div className="form-group">
-          <label htmlFor="brideName">दुल्हन का नाम (Bride Name)</label>
+          <label htmlFor="brideName">Bride Name</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -322,14 +320,14 @@ export default function InputScreen({
           </div>
           {brideName.length >= CHAR_LIMITS.name && (
             <span className="field-error">
-              Name is too long / नाम की लंबाई कम कीजिए
+              Name is too long
             </span>
           )}
         </div>
 
         {/* Bride's Parent Name */}
         <div className="form-group">
-          <label htmlFor="brideParentName">दुल्हन के पिता का नाम (Bride's Parent's Name)</label>
+          <label htmlFor="brideParentName">Bride's Parent's Name</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -359,14 +357,14 @@ export default function InputScreen({
           </div>
           {brideParentName.length >= CHAR_LIMITS.name && (
             <span className="field-error">
-              Name is too long / नाम की लंबाई कम कीजिए
+              Name is too long
             </span>
           )}
         </div>
 
         {/* Groom Name */}
         <div className="form-group">
-          <label htmlFor="groomName">दूल्हे का नाम (Groom Name)</label>
+          <label htmlFor="groomName">Groom Name</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -396,14 +394,14 @@ export default function InputScreen({
           </div>
           {groomName.length >= CHAR_LIMITS.name && (
             <span className="field-error">
-              Name is too long / नाम की लंबाई कम कीजिए
+              Name is too long
             </span>
           )}
         </div>
 
         {/* Groom's Parent Name */}
         <div className="form-group">
-          <label htmlFor="groomParentName">दूल्हे के पिता का नाम (Groom's Parent's Name)</label>
+          <label htmlFor="groomParentName">Groom's Parent's Name</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -433,14 +431,14 @@ export default function InputScreen({
           </div>
           {groomParentName.length >= CHAR_LIMITS.name && (
             <span className="field-error">
-              Name is too long / नाम की लंबाई कम कीजिए
+              Name is too long
             </span>
           )}
         </div>
 
         {/* Time Section */}
         <div className="form-group">
-          <label htmlFor="weddingTime">शादी का समय (Wedding Time)</label>
+          <label htmlFor="weddingTime">Wedding Time</label>
           <select
             id="weddingTime"
             value={weddingTime}
@@ -472,7 +470,7 @@ export default function InputScreen({
 
         {/* Date Section */}
         <div className="form-group">
-          <label htmlFor="weddingDate">शादी की तारीख (Wedding Date)</label>
+          <label htmlFor="weddingDate">Wedding Date</label>
           <input
             type="date"
             id="weddingDate"
@@ -489,7 +487,7 @@ export default function InputScreen({
 
         {/* Venue Section */}
         <div className="form-group">
-          <label htmlFor="venue">स्थान (Venue & City)</label>
+          <label htmlFor="venue">Venue & City</label>
           <div className="input-with-voice">
             <input
               type="text"
@@ -519,7 +517,7 @@ export default function InputScreen({
           </div>
           {venue.length >= CHAR_LIMITS.venue && (
             <span className="field-error">
-              Text is too long / लंबाई कम कीजिए
+              Text is too long
             </span>
           )}
         </div>
@@ -595,7 +593,7 @@ export default function InputScreen({
           className="generate-btn"
           disabled={!hasPhoto || (!devMode && !rateLimit.canGenerate)}
         >
-          {devMode ? "Generate Invite (Dev Mode)" : "Generate Invite (निमंत्रण बनाएं)"}
+          {devMode ? "Generate Invite (Dev Mode)" : "Generate Invite"}
         </button>
 
         {/* Go Back Button */}
@@ -605,7 +603,7 @@ export default function InputScreen({
             className="go-back-btn"
             onClick={onBack}
           >
-            Go Back (वापस जाएं)
+            Go Back
           </button>
         )}
 
