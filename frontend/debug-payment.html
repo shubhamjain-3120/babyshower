@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Payment Config</title>
+</head>
+<body>
+    <h1>Payment Configuration Debug</h1>
+    <pre id="output">Loading...</pre>
+
+    <script type="module">
+        const output = document.getElementById('output');
+
+        const config = {
+            // Environment variables
+            VITE_API_URL: import.meta.env.VITE_API_URL,
+            VITE_MONETIZATION_ENABLED: import.meta.env.VITE_MONETIZATION_ENABLED,
+            VITE_RAZORPAY_ENABLED: import.meta.env.VITE_RAZORPAY_ENABLED,
+            VITE_RAZORPAY_KEY_ID: import.meta.env.VITE_RAZORPAY_KEY_ID,
+            VITE_IAP_ENABLED: import.meta.env.VITE_IAP_ENABLED,
+
+            // Platform detection
+            isNativePlatform: window.Capacitor?.isNativePlatform?.() || false,
+
+            // Region detection
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            locale: navigator.language,
+        };
+
+        // Test getUserRegion logic
+        const timezone = config.timezone;
+        const locale = config.locale;
+        const isIndia =
+            timezone.includes('Kolkata') ||
+            timezone.includes('Asia/Calcutta') ||
+            locale.toLowerCase().includes('in');
+
+        config.detectedRegion = {
+            isIndia,
+            currency: isIndia ? 'INR' : 'USD',
+            amount: isIndia ? 49 : 4.99,
+            displayPrice: isIndia ? '₹49' : '$4.99'
+        };
+
+        // Test payment platform logic
+        const isRazorpayEnabled = !config.isNativePlatform && config.VITE_RAZORPAY_ENABLED === 'true';
+        config.paymentPlatform = isRazorpayEnabled ? 'razorpay' : 'none';
+
+        output.textContent = JSON.stringify(config, null, 2);
+    </script>
+</body>
+</html>
