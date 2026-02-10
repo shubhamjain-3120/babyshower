@@ -289,11 +289,11 @@ export default function App() {
    * 3. Compose video with character overlay and text (server-side)
    *
    * @param {Object} generationFormData - Form data with names, date, venue, photo
-   * @param {string} generationFormData.brideName - Bride's name
-   * @param {string} generationFormData.groomName - Groom's name
-   * @param {string} generationFormData.date - Wedding date (formatted)
-   * @param {string} generationFormData.venue - Wedding venue
-   * @param {File} generationFormData.photo - Uploaded couple photo
+   * @param {string} generationFormData.parentsName - Parents' names
+   * @param {string} generationFormData.date - Event date (formatted)
+   * @param {string} [generationFormData.time] - Event time (optional)
+   * @param {string} generationFormData.venue - Event venue
+   * @param {File} generationFormData.photo - Uploaded baby photo
    * @param {boolean} generationFormData.devMode - Skip API calls if true
    * @param {File} [generationFormData.characterFile] - Dev mode: local character file
    * @param {boolean} [generationFormData.skipBackgroundRemoval] - Dev mode: skip bg removal
@@ -317,8 +317,7 @@ export default function App() {
 
     logger.log("Generation started", {
       devMode: generationFormData.devMode,
-      brideName: generationFormData.brideName,
-      groomName: generationFormData.groomName,
+      parentsName: generationFormData.parentsName,
       hasPhoto: !!generationFormData.photo,
       hasCharacterFile: !!generationFormData.characterFile,
       skipExtraction: generationFormData.skipExtraction,
@@ -501,9 +500,9 @@ export default function App() {
         });
       } else {
         logger.log("Step 3: Starting video composition (server-side)", {
-          brideName: generationFormData.brideName,
-          groomName: generationFormData.groomName,
+          parentsName: generationFormData.parentsName,
           date: generationFormData.date,
+          time: generationFormData.time,
           venue: generationFormData.venue,
           characterImageLength: characterImage?.length,
         });
@@ -513,12 +512,10 @@ export default function App() {
         let lastLoggedProgress = 0;
         videoBlob = await composeVideoInvite({
           characterImage,
-          brideName: generationFormData.brideName,
-          groomName: generationFormData.groomName,
+          parentsName: generationFormData.parentsName,
           date: generationFormData.date,
           time: generationFormData.time,
-          brideParents: generationFormData.brideParentName,
-          groomParents: generationFormData.groomParentName,
+          venue: generationFormData.venue,
           onProgress: (progress) => {
             // Only log at key milestones (every 20%) to reduce noise
             if (progress >= lastLoggedProgress + 20 || progress === 100) {
@@ -712,8 +709,7 @@ export default function App() {
         {screen === SCREENS.RESULT && (
           <ResultScreen
             inviteVideo={finalInvite}
-            brideName={formData?.brideName}
-            groomName={formData?.groomName}
+            parentsName={formData?.parentsName}
             venue={formData?.venue}
             onReset={handleReset}
           />

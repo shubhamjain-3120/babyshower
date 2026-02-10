@@ -28,7 +28,7 @@ function getFileExtension(blob) {
   return type === 'video/mp4' ? 'mp4' : 'webm';
 }
 
-export default function ResultScreen({ inviteVideo, brideName, groomName, venue, onReset }) {
+export default function ResultScreen({ inviteVideo, parentsName, venue, onReset }) {
   const [mediaUrl, setMediaUrl] = useState(null);
   const [isImage, setIsImage] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
@@ -101,8 +101,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
     trackClick(isImage ? 'image_download' : 'video_download');
 
     logger.log("Download initiated", {
-      brideName,
-      groomName,
+      parentsName,
       mediaSize: inviteVideo instanceof Blob ? `${(inviteVideo.size / 1024 / 1024).toFixed(2)} MB` : "N/A",
       mediaType: inviteVideo instanceof Blob ? inviteVideo.type : "N/A",
       isImage,
@@ -123,8 +122,8 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
 
     const extension = getFileExtension(inviteVideo);
 
-    // Sanitize names to prevent filename injection
-    link.download = `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`;
+    // Sanitize name to prevent filename injection
+    link.download = `babyshower-invite-${sanitizeForFilename(parentsName)}.${extension}`;
 
     document.body.appendChild(link);
     link.click();
@@ -177,14 +176,14 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
   }, [requiresPayment, handlePurchase, handleDownloadInternal]);
 
   const handleShare = useCallback(async () => {
-    logger.log("Share initiated", { brideName, groomName, isImage });
+    logger.log("Share initiated", { parentsName, isImage });
 
     try {
       let file;
       
       if (inviteVideo instanceof Blob) {
         const extension = getFileExtension(inviteVideo);
-        file = new File([inviteVideo], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
+        file = new File([inviteVideo], `babyshower-invite-${sanitizeForFilename(parentsName)}.${extension}`, {
           type: inviteVideo.type,
         });
         logger.log("Created file from Blob for sharing", { extension, mimeType: inviteVideo.type });
@@ -193,7 +192,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
         const response = await fetch(inviteVideo);
         const blob = await response.blob();
         const extension = getFileExtension(blob);
-        file = new File([blob], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
+        file = new File([blob], `babyshower-invite-${sanitizeForFilename(parentsName)}.${extension}`, {
           type: blob.type,
         });
       }
@@ -206,8 +205,8 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
         trackClick(isImage ? 'image_share' : 'video_share', { share_method: 'native' });
         logger.log("Using Web Share API");
         await navigator.share({
-          title: `${groomName} & ${brideName} Wedding Invite`,
-          text: `We're getting married! 🎉🌺\nPlease join us in making this a joyful celebration.`,
+          title: `${parentsName} Baby Shower Invite`,
+          text: `Join us for a baby shower celebration! 🎉👶\nCelebrating the upcoming arrival.`,
           files: [file],
         });
         logger.log("Share completed successfully");
@@ -216,7 +215,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
         trackClick(isImage ? 'image_share' : 'video_share', { share_method: 'whatsapp_fallback' });
         logger.log("Falling back to WhatsApp share");
         const text = encodeURIComponent(
-          `We're getting married! 🎉🌺\nPlease join us in making this a joyful celebration.`
+          `Join us for a baby shower celebration! 🎉👶\nCelebrating the upcoming arrival.`
         );
         window.open(`https://wa.me/?text=${text}`, "_blank");
         alert(`Download the ${isImage ? 'image' : 'video'} and attach it to your WhatsApp message`);
@@ -226,7 +225,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
         logger.error("Share failed", err);
         // Fallback to WhatsApp
         const text = encodeURIComponent(
-          `We're getting married! 🎉🌺\nPlease join us in making this a joyful celebration.`
+          `Join us for a baby shower celebration! 🎉👶\nCelebrating the upcoming arrival.`
         );
         window.open(`https://wa.me/?text=${text}`, "_blank");
       } else {
