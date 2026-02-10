@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import { rateLimit } from "express-rate-limit";
-import { generateWeddingCharacters, analyzePhoto } from "./gemini.js";
+import { generateWeddingCharacters } from "./gemini.js";
 import { createDevLogger, isDevMode } from "./devLogger.js";
 import { exec, execSync } from "child_process";
 import { promisify } from "util";
@@ -151,36 +151,6 @@ app.use('/fonts', express.static(path.join(__dirname, 'frontend', 'public', 'fon
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", devMode: isDevMode() });
 });
-
-// Photo extraction endpoint (extraction only, no generation)
-app.post(
-  "/api/extract",
-  upload.single("photo"),
-  async (req, res) => {
-    const requestId = Date.now().toString(36);
-
-    try {
-      const photo = req.file;
-
-      const validation = validatePhotoUpload(photo, requestId);
-      if (!validation.valid) return res.status(validation.status).json({ success: false, error: validation.error });
-
-      const descriptions = await analyzePhoto(photo, requestId);
-
-      res.json({
-        success: true,
-        descriptions,
-      });
-    } catch (error) {
-      logger.error(`[${requestId}] Extraction failed`, error);
-
-      res.status(500).json({
-        success: false,
-        error: "Photo extraction failed. Please try again.",
-      });
-    }
-  }
-);
 
 // Background removal endpoint - server-side fallback for when client-side fails
 app.post(
