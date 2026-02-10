@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import { rateLimit } from "express-rate-limit";
-import { generateWeddingCharacters } from "./gemini.js";
+import { generateBabyIllustration } from "./openai-image.js";
 import { createDevLogger, isDevMode } from "./devLogger.js";
 import { exec, execSync } from "child_process";
 import { promisify } from "util";
@@ -57,7 +57,7 @@ function isValidWebMBuffer(buffer) {
 
 function validatePhotoUpload(photo, requestId) {
   if (!photo) {
-    return { valid: false, status: 400, error: "Couple photo is required" };
+    return { valid: false, status: 400, error: "Baby photo is required" };
   }
   if (!isValidImageBuffer(photo.buffer)) {
     return { valid: false, status: 400, error: "Invalid image file. Please upload a valid JPEG, PNG, GIF, or WebP image." };
@@ -243,17 +243,12 @@ app.post(
       const validation = validatePhotoUpload(photo, requestId);
       if (!validation.valid) return res.status(validation.status).json({ success: false, error: validation.error });
 
-      const result = await generateWeddingCharacters(photo, requestId);
+      // Generate Ghibli-style illustration using OpenAI
+      const imageBase64 = await generateBabyIllustration(photo.buffer, requestId);
 
       res.json({
         success: true,
-        characterImage: `data:${result.mimeType};base64,${result.imageData}`,
-        evaluation: result.evaluation ? {
-          score: result.evaluation.score,
-          passed: result.evaluation.passed,
-          hardRulesPassed: result.evaluation.hardRulesPassed,
-          issues: result.evaluation.details?.issues || []
-        } : null
+        characterImage: `data:image/png;base64,${imageBase64}`,
       });
     } catch (error) {
       logger.error(`[${requestId}] Generation failed`, error);
