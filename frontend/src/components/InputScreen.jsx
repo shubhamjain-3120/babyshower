@@ -17,14 +17,14 @@ const logger = createDevLogger("InputScreen");
  */
 
 // LocalStorage key for caching form data
-const CACHE_KEY = "wedding-invite-form-cache";
+const CACHE_KEY = "babyshower-invite-form-cache";
 
 // Secret venue name that enables dev mode
-const DEV_MODE_VENUE = "Hotel Jain Ji Shubham";
+const DEV_MODE_VENUE = "Test Baby Shower";
 
 // Character limits for input fields
 const CHAR_LIMITS = {
-  name: 50,
+  parentsName: 100,
   venue: 150,
 };
 
@@ -92,18 +92,15 @@ export default function InputScreen({
   const cachedData = useMemo(() => loadCachedFormData(), []);
 
   // Form fields - initialize from cache if available
-  const [brideName, setBrideName] = useState(cachedData?.brideName || "");
-  const [brideParentName, setBrideParentName] = useState(cachedData?.brideParentName || "");
-  const [groomName, setGroomName] = useState(cachedData?.groomName || "");
-  const [groomParentName, setGroomParentName] = useState(cachedData?.groomParentName || "");
-  const [weddingTime, setWeddingTime] = useState(cachedData?.weddingTime || "");
-  const [weddingDate, setWeddingDate] = useState(cachedData?.weddingDate || "");
+  const [parentsName, setParentsName] = useState(cachedData?.parentsName || "");
+  const [eventTime, setEventTime] = useState(cachedData?.eventTime || "");
+  const [eventDate, setEventDate] = useState(cachedData?.eventDate || "");
   const [venue, setVenue] = useState(cachedData?.venue || "");
 
   // Save form data to cache whenever it changes
   useEffect(() => {
-    saveCachedFormData({ brideName, brideParentName, groomName, groomParentName, weddingTime, weddingDate, venue });
-  }, [brideName, brideParentName, groomName, groomParentName, weddingTime, weddingDate, venue]);
+    saveCachedFormData({ parentsName, eventTime, eventDate, venue });
+  }, [parentsName, eventTime, eventDate, venue]);
 
   // Dev mode - enabled automatically when venue matches secret phrase
   const devMode = useMemo(() => {
@@ -152,9 +149,9 @@ export default function InputScreen({
       return;
     }
 
-    if (!brideName.trim() || !groomName.trim() || !weddingDate || !venue.trim()) {
+    if (!parentsName.trim() || !eventDate || !venue.trim()) {
       logger.warn("Form validation", "Missing required fields");
-      alert("Please fill all fields");
+      alert("Please fill all required fields");
       return;
     }
 
@@ -167,14 +164,11 @@ export default function InputScreen({
 
     // Sanitize all user inputs before submission
     const formData = {
-      brideName: sanitizeInput(brideName),
-      brideParentName: sanitizeInput(brideParentName),
-      groomName: sanitizeInput(groomName),
-      groomParentName: sanitizeInput(groomParentName),
-      time: weddingTime,
-      date: formatDateForInvite(weddingDate),
+      parentsName: sanitizeInput(parentsName),
+      time: eventTime,
+      date: formatDateForInvite(eventDate),
       venue: sanitizeInput(venue),
-      photo, // Single couple photo
+      photo, // Baby photo
       devMode, // Whether to skip API
       characterFile: devMode ? photo : null, // In dev mode, use photo as character file
       // Dev mode toggles
@@ -185,8 +179,8 @@ export default function InputScreen({
     };
 
     logger.log("Form validation passed, showing confirmation modal", {
-      brideName: formData.brideName,
-      groomName: formData.groomName,
+      parentsName: formData.parentsName,
+      time: formData.time,
       date: formData.date,
       venue: formData.venue,
       devMode: formData.devMode,
@@ -219,34 +213,22 @@ export default function InputScreen({
 
             {/* Photo Preview */}
             <div className="modal-photo-container">
-              <img src={URL.createObjectURL(photo)} alt="Couple photo" />
+              <img src={URL.createObjectURL(photo)} alt="Baby photo" />
               <p className="modal-label">Photo</p>
             </div>
 
             {/* Details */}
             <div className="modal-details">
               <div className="modal-detail-item">
-                <span className="modal-detail-label">Bride's Name:</span>
-                <span className="modal-detail-value">{validatedFormData.brideName}</span>
-              </div>
-              <div className="modal-detail-item">
-                <span className="modal-detail-label">Bride's Parent's Name:</span>
-                <span className="modal-detail-value">{validatedFormData.brideParentName}</span>
-              </div>
-              <div className="modal-detail-item">
-                <span className="modal-detail-label">Groom's Name:</span>
-                <span className="modal-detail-value">{validatedFormData.groomName}</span>
-              </div>
-              <div className="modal-detail-item">
-                <span className="modal-detail-label">Groom's Parent's Name:</span>
-                <span className="modal-detail-value">{validatedFormData.groomParentName}</span>
+                <span className="modal-detail-label">Parents' Name:</span>
+                <span className="modal-detail-value">{validatedFormData.parentsName}</span>
               </div>
               <div className="modal-detail-item">
                 <span className="modal-detail-label">Time:</span>
-                <span className="modal-detail-value">{validatedFormData.time}</span>
+                <span className="modal-detail-value">{validatedFormData.time || 'Not specified'}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">Wedding Date:</span>
+                <span className="modal-detail-label">Date:</span>
                 <span className="modal-detail-value">{validatedFormData.date}</span>
               </div>
               <div className="modal-detail-item">
@@ -283,33 +265,33 @@ export default function InputScreen({
       {/* Hero headline */}
       <div className="hero-container" style={{ marginBottom: '20px' }}>
         <div className="sample-video-value-hindi">
-          <label>Fill in your wedding details</label>
+          <label>Fill in your baby shower details</label>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="form">
-        {/* Bride Name */}
+        {/* Parents Name */}
         <div className="form-group">
-          <label htmlFor="brideName">Bride Name</label>
+          <label htmlFor="parentsName">Parents' Name</label>
           <div className="input-with-voice">
             <input
               type="text"
-              id="brideName"
-              value={brideName}
-              onChange={(e) => setBrideName(e.target.value)}
-              placeholder="Enter bride's name"
+              id="parentsName"
+              value={parentsName}
+              onChange={(e) => setParentsName(e.target.value)}
+              placeholder="e.g., John & Mary Smith"
               autoComplete="off"
               autoCapitalize="words"
               inputMode="text"
-              maxLength={CHAR_LIMITS.name}
+              maxLength={CHAR_LIMITS.parentsName}
               required
             />
             {isSupported && (
               <button
                 type="button"
-                className={`voice-btn ${isListening && activeField === "brideName" ? "listening" : ""}`}
-                onClick={() => handleVoiceInput("brideName", setBrideName)}
-                aria-label="Voice input for bride name"
+                className={`voice-btn ${isListening && activeField === "parentsName" ? "listening" : ""}`}
+                onClick={() => handleVoiceInput("parentsName", setParentsName)}
+                aria-label="Voice input for parents name"
               >
                 <svg className="voice-icon" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
@@ -318,118 +300,7 @@ export default function InputScreen({
               </button>
             )}
           </div>
-          {brideName.length >= CHAR_LIMITS.name && (
-            <span className="field-error">
-              Name is too long
-            </span>
-          )}
-        </div>
-
-        {/* Bride's Parent Name */}
-        <div className="form-group">
-          <label htmlFor="brideParentName">Bride's Parent's Name</label>
-          <div className="input-with-voice">
-            <input
-              type="text"
-              id="brideParentName"
-              value={brideParentName}
-              onChange={(e) => setBrideParentName(e.target.value)}
-              placeholder="Enter bride's parent's name"
-              autoComplete="off"
-              autoCapitalize="words"
-              inputMode="text"
-              maxLength={CHAR_LIMITS.name}
-              required
-            />
-            {isSupported && (
-              <button
-                type="button"
-                className={`voice-btn ${isListening && activeField === "brideParentName" ? "listening" : ""}`}
-                onClick={() => handleVoiceInput("brideParentName", setBrideParentName)}
-                aria-label="Voice input for bride parent name"
-              >
-                <svg className="voice-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                </svg>
-              </button>
-            )}
-          </div>
-          {brideParentName.length >= CHAR_LIMITS.name && (
-            <span className="field-error">
-              Name is too long
-            </span>
-          )}
-        </div>
-
-        {/* Groom Name */}
-        <div className="form-group">
-          <label htmlFor="groomName">Groom Name</label>
-          <div className="input-with-voice">
-            <input
-              type="text"
-              id="groomName"
-              value={groomName}
-              onChange={(e) => setGroomName(e.target.value)}
-              placeholder="Enter groom's name"
-              autoComplete="off"
-              autoCapitalize="words"
-              inputMode="text"
-              maxLength={CHAR_LIMITS.name}
-              required
-            />
-            {isSupported && (
-              <button
-                type="button"
-                className={`voice-btn ${isListening && activeField === "groomName" ? "listening" : ""}`}
-                onClick={() => handleVoiceInput("groomName", setGroomName)}
-                aria-label="Voice input for groom name"
-              >
-                <svg className="voice-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                </svg>
-              </button>
-            )}
-          </div>
-          {groomName.length >= CHAR_LIMITS.name && (
-            <span className="field-error">
-              Name is too long
-            </span>
-          )}
-        </div>
-
-        {/* Groom's Parent Name */}
-        <div className="form-group">
-          <label htmlFor="groomParentName">Groom's Parent's Name</label>
-          <div className="input-with-voice">
-            <input
-              type="text"
-              id="groomParentName"
-              value={groomParentName}
-              onChange={(e) => setGroomParentName(e.target.value)}
-              placeholder="Enter groom's parent's name"
-              autoComplete="off"
-              autoCapitalize="words"
-              inputMode="text"
-              maxLength={CHAR_LIMITS.name}
-              required
-            />
-            {isSupported && (
-              <button
-                type="button"
-                className={`voice-btn ${isListening && activeField === "groomParentName" ? "listening" : ""}`}
-                onClick={() => handleVoiceInput("groomParentName", setGroomParentName)}
-                aria-label="Voice input for groom parent name"
-              >
-                <svg className="voice-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                </svg>
-              </button>
-            )}
-          </div>
-          {groomParentName.length >= CHAR_LIMITS.name && (
+          {parentsName.length >= CHAR_LIMITS.parentsName && (
             <span className="field-error">
               Name is too long
             </span>
@@ -438,12 +309,11 @@ export default function InputScreen({
 
         {/* Time Section */}
         <div className="form-group">
-          <label htmlFor="weddingTime">Wedding Time</label>
+          <label htmlFor="eventTime">Time</label>
           <select
-            id="weddingTime"
-            value={weddingTime}
-            onChange={(e) => setWeddingTime(e.target.value)}
-            required
+            id="eventTime"
+            value={eventTime}
+            onChange={(e) => setEventTime(e.target.value)}
           >
             <option value="">Select time</option>
             <option value="6am">6am</option>
@@ -470,17 +340,17 @@ export default function InputScreen({
 
         {/* Date Section */}
         <div className="form-group">
-          <label htmlFor="weddingDate">Wedding Date</label>
+          <label htmlFor="eventDate">Date</label>
           <input
             type="date"
-            id="weddingDate"
-            value={weddingDate}
-            onChange={(e) => setWeddingDate(e.target.value)}
+            id="eventDate"
+            value={eventDate}
+            onChange={(e) => setEventDate(e.target.value)}
             required
           />
-          {weddingDate && (
+          {eventDate && (
             <span className="date-preview">
-              {formatDateForInvite(weddingDate)}
+              {formatDateForInvite(eventDate)}
             </span>
           )}
         </div>
