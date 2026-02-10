@@ -353,13 +353,13 @@ app.post(
     const requestId = Date.now().toString(36);
 
     try {
-      const { brideName, groomName, date, time, brideParents, groomParents } = req.body;
+      const { parentsName, date, time, venue } = req.body;
       const characterImage = req.file;
 
-      if (!brideName || !groomName || !date || !time || !brideParents || !groomParents) {
+      if (!parentsName || !date || !venue) {
         return res.status(400).json({
           success: false,
-          error: "Missing required fields: brideName, groomName, date, time, brideParents, groomParents",
+          error: "Missing required fields: parentsName, date, venue",
         });
       }
 
@@ -442,11 +442,11 @@ app.post(
       const wedsSize = 60;        // 24 → 60
       const dateSize = 40;        // 24 → 40
       const timeSize = 30;        // 20 → 30
-      // Character animation timing
-      const CHARACTER_FADE_START = 2;
-      const CHARACTER_FADE_DURATION = 2;
-      const CHARACTER_FADE_OUT_START = 8;  // Start fading out at 8s
-      const CHARACTER_FADE_OUT_DURATION = 2;  // Fade out over 2s (done by 10s)
+      // Baby shower animation timing (per plan: baby at 20s, details at 25s)
+      const BABY_FADE_START = 20;
+      const BABY_FADE_DURATION = 1;
+      const TEXT_FADE_START = 25;
+      const TEXT_FADE_DURATION = 2;
 
       // Escape special characters for FFmpeg drawtext
       const escapeText = (text) => text.replace(/'/g, "'\\''").replace(/:/g, "\\:");
@@ -454,14 +454,11 @@ app.post(
       // Escape font file paths for FFmpeg (colons need escaping, use forward slashes)
       const escapeFontPath = (fontPath) => fontPath.replace(/\\/g, '/').replace(/:/g, '\\:');
 
-      // Build text for each line
-      const brideNameText = escapeText(brideName);
-      const brideDaughterText = escapeText(`(Daughter of ${brideParents})`);
-      const wedsText = "WEDS";
-      const groomNameText = escapeText(groomName);
-      const groomSonText = escapeText(`(Son of ${groomParents})`);
+      // Build text for baby shower
+      const parentsNameText = escapeText(parentsName);
       const dateText = escapeText(date);
-      const timeText = escapeText(`${time} onwards`);
+      const timeText = time ? escapeText(time) : "";
+      const venueText = escapeText(venue);
 
       // Check if divider PNG was created successfully
       let dividerExists = false;
@@ -472,55 +469,48 @@ app.post(
         // Divider not available, will skip in filter
       }
 
-      // Layers: scaled video → character overlay → divider overlay → text overlays
+      // Layers: scaled video → baby image overlay → text overlays
       let filterComplex = `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}[bg];`;
 
       let inputIndex = 1;
       if (characterImage) {
-        // Scale character image, fade in at 2s, fade out by 10s
-        filterComplex += `[${inputIndex}:v]scale=-1:${charHeight},format=rgba,fade=in:st=${CHARACTER_FADE_START}:d=${CHARACTER_FADE_DURATION}:alpha=1,fade=out:st=${CHARACTER_FADE_OUT_START}:d=${CHARACTER_FADE_OUT_DURATION}:alpha=1[char];`;
+        // Scale baby image, fade in at 20s (per plan)
+        filterComplex += `[${inputIndex}:v]scale=-1:${charHeight},format=rgba,fade=in:st=${BABY_FADE_START}:d=${BABY_FADE_DURATION}:alpha=1[char];`;
         filterComplex += `[bg][char]overlay=(W-w)/2:${charY}[vid];`;
         inputIndex++;
       } else {
         filterComplex += `[bg]copy[vid];`;
       }
 
-      // Add divider overlay with fade-in at 10s (if available)
-      if (dividerExists) {
-        filterComplex += `[${inputIndex}:v]scale=400:-1,format=rgba,fade=in:st=10:d=2:alpha=1[divider];`;
-        filterComplex += `[vid][divider]overlay=(W-w)/2:${dividerY}[vid2];`;
-      } else {
-        filterComplex += `[vid]copy[vid2];`;
-      }
+      // Baby shower text layout (simplified, no divider)
+      // Text positions
+      const parentsNameY = Math.round(height * 0.15);  // 15% from top
+      const dateY = Math.round(height * 0.75);         // 75% from top
+      const timeY = dateY + 60;                        // 60px below date
+      const venueY = timeY + 60;                       // 60px below time
 
-      // Add text overlays with fade-in at 10s over 2s duration
-      // Alpha expression: invisible until 10s, fade from 0 to 1 between 10-12s, then fully visible
-      const textAlpha = "if(lt(t,10),0,if(lt(t,12),((t-10)/2),1))";
+      // Text alpha: fade in at 25s over 2s (per plan)
+      const textAlpha = \`if(lt(t,${TEXT_FADE_START}),0,if(lt(t,${TEXT_FADE_START + TEXT_FADE_DURATION}),((t-${TEXT_FADE_START})/${TEXT_FADE_DURATION}),1))\`;
 
       // Escape font paths for FFmpeg drawtext filter
       const playfairBoldEsc = escapeFontPath(playfairBold);
       const playfairItalicEsc = escapeFontPath(playfairItalic);
 
-      // Bride name (Playfair Display Bold, 80px, #621d35)
-      filterComplex += `[vid2]drawtext=fontfile=${playfairBoldEsc}:text='${brideNameText}':fontsize=${brideGroomNameSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${brideNameY}:alpha='${textAlpha}'[v1];`;
+      // Parents name (Playfair Display Bold, 60px, sky blue #87CEEB)
+      filterComplex += \`[vid]drawtext=fontfile=\${playfairBoldEsc}:text='\${parentsNameText}':fontsize=60:fontcolor=0x87CEEB:x=(w-text_w)/2:y=\${parentsNameY}:alpha='\${textAlpha}'[v1];\`;
 
-      // Daughter of... (Playfair Display Italic, 40px, #621d35)
-      filterComplex += `[v1]drawtext=fontfile=${playfairItalicEsc}:text='${brideDaughterText}':fontsize=${parentLineSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${brideDaughterY}:alpha='${textAlpha}'[v2];`;
+      // Date (Playfair Display Italic, 40px, white)
+      filterComplex += \`[v1]drawtext=fontfile=\${playfairItalicEsc}:text='\${dateText}':fontsize=40:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=\${dateY}:alpha='\${textAlpha}'[v2];\`;
 
-      // WEDS (Playfair Display Italic, 60px, #621d35)
-      filterComplex += `[v2]drawtext=fontfile=${playfairItalicEsc}:text='${wedsText}':fontsize=${wedsSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${wedsY}:alpha='${textAlpha}'[v3];`;
+      // Time (if provided)
+      let currentLayer = 'v2';
+      if (timeText) {
+        filterComplex += \`[\${currentLayer}]drawtext=fontfile=\${playfairItalicEsc}:text='\${timeText}':fontsize=35:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=\${timeY}:alpha='\${textAlpha}'[v3];\`;
+        currentLayer = 'v3';
+      }
 
-      // Groom name (Playfair Display Bold, 80px, #621d35)
-      filterComplex += `[v3]drawtext=fontfile=${playfairBoldEsc}:text='${groomNameText}':fontsize=${brideGroomNameSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${groomNameY}:alpha='${textAlpha}'[v4];`;
-
-      // Son of... (Playfair Display Italic, 40px, #621d35)
-      filterComplex += `[v4]drawtext=fontfile=${playfairItalicEsc}:text='${groomSonText}':fontsize=${parentLineSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${groomSonY}:alpha='${textAlpha}'[v5];`;
-
-      // Date (Playfair Display Italic, 40px, #621d35)
-      filterComplex += `[v5]drawtext=fontfile=${playfairItalicEsc}:text='${dateText}':fontsize=${dateSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${dateY}:alpha='${textAlpha}'[v6];`;
-
-      // Time onwards (Playfair Display Italic, 30px, #621d35)
-      filterComplex += `[v6]drawtext=fontfile=${playfairItalicEsc}:text='${timeText}':fontsize=${timeSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${timeY}:alpha='${textAlpha}'[vout]`;
+      // Venue (Playfair Display Italic, 35px, white)
+      filterComplex += \`[\${currentLayer}]drawtext=fontfile=\${playfairItalicEsc}:text='\${venueText}':fontsize=35:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=\${venueY}:alpha='\${textAlpha}'[vout]\`;
 
       // Build FFmpeg command
       // Use explicit -t on looped image input to avoid infinite stream + malformed moov atom

@@ -160,18 +160,16 @@ async function compressCharacterImage(dataURL, maxWidth = 1080) {
  * - 30-90%: Server-side video composition
  * - 90-100%: Downloading MP4
  */
-async function serverComposeVideo({ characterImage, brideName, groomName, date, time, brideParents, groomParents, onProgress }) {
+async function serverComposeVideo({ characterImage, parentsName, date, time, venue, onProgress }) {
   const startTime = performance.now();
   logger.log("Starting server-side video composition", {
     API_URL: API_URL || '(empty - using relative path)',
     fullURL: `${API_URL}/api/compose-video`,
     characterImageLength: characterImage?.length,
-    brideName,
-    groomName,
+    parentsName,
     date,
     time,
-    brideParents,
-    groomParents,
+    venue,
   });
 
   const formData = new FormData();
@@ -182,12 +180,10 @@ async function serverComposeVideo({ characterImage, brideName, groomName, date, 
     formData.append("characterImage", characterBlob, "character.png");
   }
 
-  formData.append("brideName", brideName);
-  formData.append("groomName", groomName);
+  formData.append("parentsName", parentsName);
   formData.append("date", date);
-  formData.append("time", time);
-  formData.append("brideParents", brideParents);
-  formData.append("groomParents", groomParents);
+  formData.append("time", time || "");
+  formData.append("venue", venue);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -1006,23 +1002,19 @@ function drawFrame(ctx, video, characterImg, characterBounds, brideName, groomNa
  */
 export async function composeVideoInvite({
   characterImage,
-  brideName,
-  groomName,
+  parentsName,
   date,
   time,
-  brideParents,
-  groomParents,
+  venue,
   onProgress = () => {}
 }) {
   const compositionStartTime = performance.now();
 
   logger.log("=== VIDEO COMPOSITION STARTED (SERVER-SIDE) ===", {
-    brideName,
-    groomName,
+    parentsName,
     date,
     time,
-    brideParents,
-    groomParents,
+    venue,
     characterImageSize: characterImage ? `${(characterImage.length / 1024).toFixed(1)}KB` : 'N/A',
     timestamp: new Date().toISOString(),
     userAgent: navigator.userAgent.slice(0, 100),
@@ -1034,12 +1026,10 @@ export async function composeVideoInvite({
   try {
     const mp4Blob = await serverComposeVideo({
       characterImage,
-      brideName,
-      groomName,
+      parentsName,
       date,
       time,
-      brideParents,
-      groomParents,
+      venue,
       onProgress,
     });
 
