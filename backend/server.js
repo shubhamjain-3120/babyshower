@@ -365,11 +365,9 @@ app.post(
 
       const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "video-compose-"));
       const characterPath = path.join(tempDir, "character.png");
-      const dividerPngPath = path.join(tempDir, "divider.png");
       const outputPath = path.join(tempDir, "output.mp4");
 
       const backgroundVideoPath = path.join(__dirname, "../frontend/public/assets/background.mp4");
-      const dividerSvgPath = path.join(__dirname, "../frontend/public/assets/divider.svg");
       const fontsDir = path.join(__dirname, "../frontend/public/fonts");
       const playfairRegular = path.join(fontsDir, "PlayfairDisplay.ttf");
       const playfairBold = path.join(fontsDir, "PlayfairDisplay-Bold.ttf");
@@ -389,30 +387,16 @@ app.post(
         await fs.access(playfairRegular);
         await fs.access(playfairBold);
         await fs.access(playfairItalic);
-        await fs.access(dividerSvgPath);
       } catch (err) {
         logger.error(`[${requestId}] Required assets NOT FOUND`, err);
         return res.status(500).json({
           success: false,
-          error: `Required assets not found. Please check fonts and divider.svg`,
+          error: `Required assets not found. Please check fonts`,
         });
       }
 
       if (characterImage) {
         await fs.writeFile(characterPath, characterImage.buffer);
-      }
-
-      // Convert divider.svg to PNG for overlay (width=400px for good quality)
-      try {
-        await execAsync(`convert -background none -density 300 -resize 400x "${dividerSvgPath}" "${dividerPngPath}"`);
-      } catch (convertError) {
-        logger.error(`[${requestId}] SVG to PNG conversion failed, trying rsvg-convert`, convertError);
-        try {
-          await execAsync(`rsvg-convert -w 400 "${dividerSvgPath}" -o "${dividerPngPath}"`);
-        } catch (rsvgError) {
-          logger.error(`[${requestId}] Both convert and rsvg-convert failed, skipping divider`);
-          // Continue without divider if conversion fails
-        }
       }
 
       // Video dimensions (720p portrait for high quality)
@@ -426,22 +410,6 @@ app.post(
       const charHeight = Math.round(height * charHeightPercent);
       const charY = Math.round(height * charTopPercent);
 
-      // Text layout positions (text fades in at 10s after character fades out)
-      const brideNameY = Math.round(height * 0.18); // 18% from top = 230px
-      const brideDaughterY = brideNameY + 105;      // 105px below bride name = 335px
-      const wedsY = Math.round(height * 0.40);      // 40% from top = 512px
-      const groomNameY = 690;                       // Moved up by 20px (was 710)
-      const groomSonY = groomNameY + 105;           // 105px below groom name = 795px
-      const dividerY = Math.round(height * 0.68);   // 68% from top = 870px (moved up, now before date)
-      const dateY = dividerY + 90;                  // 90px below divider = 960px
-      const timeY = dateY + 80;                     // 80px below date = 1040px
-
-      // Font sizes (updated per plan)
-      const brideGroomNameSize = 80;
-      const parentLineSize = 40;  // 20 → 40
-      const wedsSize = 60;        // 24 → 60
-      const dateSize = 40;        // 24 → 40
-      const timeSize = 30;        // 20 → 30
       // Baby shower animation timing (per plan: baby at 20s, details at 25s)
       const BABY_FADE_START = 20;
       const BABY_FADE_DURATION = 1;
@@ -459,15 +427,6 @@ app.post(
       const dateText = escapeText(date);
       const timeText = time ? escapeText(time) : "";
       const venueText = escapeText(venue);
-
-      // Check if divider PNG was created successfully
-      let dividerExists = false;
-      try {
-        await fs.access(dividerPngPath);
-        dividerExists = true;
-      } catch {
-        // Divider not available, will skip in filter
-      }
 
       // Layers: scaled video → baby image overlay → text overlays
       let filterComplex = `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}[bg];`;
