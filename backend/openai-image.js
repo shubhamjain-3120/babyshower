@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { createDevLogger } from "./devLogger.js";
+import { BABY_ILLUSTRATION_PROMPT } from "./image-prompt.js";
 
 const logger = createDevLogger("OpenAI");
 
@@ -18,7 +19,7 @@ const openai = new OpenAI({
  * @param {string} requestId - Request ID for logging
  * @returns {Promise<string>} - Base64 encoded image
  */
-export async function generateBabyIllustration(photoBuffer, requestId) {
+export async function generateBabyIllustrationWithOpenAI(photoBuffer, requestId) {
   logger.log(`[${requestId}] Starting Ghibli transformation with direct image generation`);
 
   if (!process.env.OPENAI_API_KEY) {
@@ -32,20 +33,14 @@ export async function generateBabyIllustration(photoBuffer, requestId) {
     const imageUrl = `data:image/jpeg;base64,${base64Image}`;
 
     // Direct image generation prompt (generic - works with any subject)
-    const prompt = `Transform the subject in this reference image into a warm and whimsical Studio Ghibli style illustration.
-Maintain the subject's key facial features, expression, and appearance while applying these artistic elements:
-- Soft watercolor aesthetic with gentle pastel colors
-- Dreamy and peaceful atmosphere with soft, diffused lighting
-- Magical, enchanting feeling characteristic of Studio Ghibli films
-- Simple, clean composition with the subject as the central focus
-- White or very light background to allow easy background removal`;
+    const prompt = BABY_ILLUSTRATION_PROMPT;
 
     logger.log(`[${requestId}] Calling responses.create with image_generation tool`);
 
     // Use new responses API with image generation tool
     // Force tool usage with tool_choice to ensure image generation
     const response = await openai.responses.create({
-      model: "gpt-4.1",
+      model: "gpt-4o",
       input: [
         {
           role: "user",

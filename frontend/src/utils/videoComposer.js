@@ -510,7 +510,7 @@ const LAYOUT_V4 = {
     fontRatio: 2.405,
     maxWidthPercent: 0.88,
     letterSpacing: 0.02,
-    fontFamily: "AlexBrush, 'Alex Brush', 'Great Vibes', cursive",
+    fontFamily: "Brightwall, 'Brightwall', cursive",
     fontWeight: "400",
   },
 
@@ -523,7 +523,7 @@ const LAYOUT_V4 = {
     yPercent: 0.875,
     fontRatio: 0.9,
     letterSpacing: 0.02,
-    fontFamily: "PlayfairDisplay, 'Playfair Display', Georgia, serif",
+    fontFamily: "Roxborough, 'Roxborough CF', Georgia, serif",
     fontWeight: "500",
     color: "#8B7355",
   },
@@ -532,7 +532,7 @@ const LAYOUT_V4 = {
     yPercent: 0.915,
     fontRatio: 0.9,
     letterSpacing: 0.02,
-    fontFamily: "PlayfairDisplay, 'Playfair Display', Georgia, serif",
+    fontFamily: "Roxborough, 'Roxborough CF', Georgia, serif",
     fontWeight: "500",
     color: "#8B7355",
   },
@@ -654,20 +654,18 @@ function loadVideo(src) {
 async function loadFonts() {
   const startTime = performance.now();
   logger.log("Loading fonts", {
-    fonts: ["AlexBrush", "PlayfairDisplay", "Inter", "InterMedium"]
+    fonts: ["Brightwall", "Opensauce", "Roxborough"]
   });
   
-  const alexBrush = new FontFace("AlexBrush", "url(/fonts/AlexBrush-Regular.ttf)");
-  const playfair = new FontFace("PlayfairDisplay", "url(/fonts/PlayfairDisplay-Regular.ttf)");
-  const inter = new FontFace("Inter", "url(/fonts/Inter-Regular.ttf)");
-  const interMedium = new FontFace("InterMedium", "url(/fonts/Inter-Medium.ttf)");
+  const brightwall = new FontFace("Brightwall", "url(/fonts/Brightwall.ttf)");
+  const openSauce = new FontFace("Opensauce", "url(/fonts/Opensauce.ttf)");
+  const roxborough = new FontFace("Roxborough", "url(/fonts/Roxborough%20CF.ttf)");
 
   try {
     const loadedFonts = await Promise.all([
-      alexBrush.load(),
-      playfair.load(),
-      inter.load(),
-      interMedium.load(),
+      brightwall.load(),
+      openSauce.load(),
+      roxborough.load(),
     ]);
     
     loadedFonts.forEach(font => {

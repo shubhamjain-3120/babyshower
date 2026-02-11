@@ -25,7 +25,7 @@ export default function SampleVideoScreen({ onProceed }) {
 
   return (
     <div className="input-screen">
-      <div className="form" style={{ gap: '16px' }}>
+      <div className="form">
         {/* Hero headline */}
         <div className="hero-container">
           <div className="sample-video-value-hindi">
@@ -49,7 +49,6 @@ export default function SampleVideoScreen({ onProceed }) {
         {/* CTA Button */}
         <button
           className="generate-btn"
-          style={{ marginTop: '0' }}
           onClick={handleProceed}
         >
           upload photo

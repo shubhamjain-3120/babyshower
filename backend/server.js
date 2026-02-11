@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import { rateLimit } from "express-rate-limit";
-import { generateBabyIllustration } from "./openai-image.js";
+import { generateBabyIllustration } from "./image-generation.js";
 import { createDevLogger, isDevMode } from "./devLogger.js";
 import { exec, execSync } from "child_process";
 import { promisify } from "util";
@@ -245,7 +245,9 @@ app.post(
       if (!validation.valid) return res.status(validation.status).json({ success: false, error: validation.error });
 
       // Generate Ghibli-style illustration using OpenAI
-      const imageBase64 = await generateBabyIllustration(photo.buffer, requestId);
+      const imageBase64 = await generateBabyIllustration(photo.buffer, requestId, {
+        mimeType: photo.mimetype,
+      });
 
       res.json({
         success: true,
@@ -370,12 +372,14 @@ app.post(
 
       const backgroundVideoPath = path.join(__dirname, "../frontend/public/assets/background.mp4");
       const fontsDir = path.join(__dirname, "../frontend/public/fonts");
-      const playfairRegular = path.join(fontsDir, "PlayfairDisplay.ttf");
-      const playfairBold = path.join(fontsDir, "PlayfairDisplay-Bold.ttf");
-      const playfairItalic = path.join(fontsDir, "PlayfairDisplay-Italic.ttf");
       const brightwall = path.join(fontsDir, "Brightwall.ttf");
       const openSauce = path.join(fontsDir, "Opensauce.ttf");
       const roxborough = path.join(fontsDir, "Roxborough CF.ttf");
+      const fontSources = {
+        "Brightwall.ttf": brightwall,
+        "Opensauce.ttf": openSauce,
+        "Roxborough CF.ttf": roxborough,
+      };
 
       try {
         await fs.access(backgroundVideoPath);
@@ -388,12 +392,9 @@ app.post(
       }
 
       try {
-        await fs.access(playfairRegular);
-        await fs.access(playfairBold);
-        await fs.access(playfairItalic);
-        await fs.access(brightwall);
-        await fs.access(openSauce);
-        await fs.access(roxborough);
+        for (const fontPath of Object.values(fontSources)) {
+          await fs.access(fontPath);
+        }
       } catch (err) {
         logger.error(`[${requestId}] Required assets NOT FOUND`, err);
         return res.status(500).json({
@@ -409,22 +410,34 @@ app.post(
       // Video dimensions (1080x1920 portrait)
       const { width, height } = VIDEO_CONFIG.canvas;
 
+      const elements = VIDEO_CONFIG.elements || {};
+      const timingPresets = VIDEO_CONFIG.timings || {};
+      const babyImageConfig = elements.babyImage || {};
+      const babyImagePosition = babyImageConfig.position || {};
+
+      // Helpers for element config lookup (reused for image + text)
+      const getElement = (key) => elements?.[key] || {};
+      const getTiming = (key) => {
+        const element = getElement(key);
+        const directTiming = element.timing;
+        if (directTiming) return directTiming;
+        const ref = element.timingRef;
+        return ref ? timingPresets[ref] || {} : {};
+      };
+
       // Character positioning (configured in VIDEO_CONFIG)
-      const characterConfig = VIDEO_CONFIG.positions.babyImage;
-      const charMaxWidth = Math.round(characterConfig.width);
-      const charMaxHeight = Math.round(characterConfig.height);
-      const charCenterX = Math.round(characterConfig.x);
-      const charCenterY = Math.round(characterConfig.y);
+      const charMaxWidth = Math.round(babyImagePosition.width || 0);
+      const charMaxHeight = Math.round(babyImagePosition.height || 0);
+      const charCenterX = Math.round(babyImagePosition.x || 0);
+      const charCenterY = Math.round(babyImagePosition.y || 0);
       const minTopPadding = 150;
 
-      // Baby shower animation timing (from VIDEO_CONFIG where available)
-      const babyTiming = VIDEO_CONFIG?.timing?.babyImage || {};
+      // Baby image timing (from VIDEO_CONFIG where available)
+      const babyTiming = getTiming("babyImage") || {};
       const BABY_FADE_START = babyTiming.fadeInStart ?? 15;
       const BABY_FADE_DURATION = babyTiming.fadeInDuration ?? 1;
       const BABY_FADE_OUT_START = babyTiming.fadeOutStart ?? 28;
       const BABY_FADE_OUT_DURATION = babyTiming.fadeOutDuration ?? 2;
-      const TEXT_FADE_START = 20;
-      const TEXT_FADE_DURATION = 1;
 
       const parseDateParts = (dateText) => {
         if (!dateText || typeof dateText !== "string") {
@@ -485,11 +498,19 @@ app.post(
       };
       const alignY = (position) => `${position.y}-(text_h/2)`;
 
-      // Escape special characters for FFmpeg drawtext
-      const escapeText = (text) => text.replace(/'/g, "'\\''").replace(/:/g, "\\:");
+      // Escape special characters for FFmpeg drawtext (filtergraph parser)
+      const escapeText = (text = "") => text
+        .replace(/\\/g, "\\\\") // escape backslashes first
+        .replace(/'/g, "\\'")
+        .replace(/:/g, "\\:")
+        .replace(/,/g, "\\,")
+        .replace(/\r?\n/g, "\\n");
 
-      // Escape font file paths for FFmpeg (colons need escaping, use forward slashes)
-      const escapeFontPath = (fontPath) => fontPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+      // Escape font file paths for FFmpeg drawtext (use forward slashes, escape filter separators)
+      const escapeFontPath = (fontPath) => fontPath
+        .replace(/\\/g, "/")
+        .replace(/'/g, "\\'")
+        .replace(/:/g, "\\:");
 
       // Build text for baby shower
       const parentsNameText = escapeText(parentsName);
@@ -518,62 +539,96 @@ app.post(
         filterComplex += `[bg]copy[vid];`;
       }
 
-      // Baby shower text layout (positions are in VIDEO_CONFIG)
-      const { positions, styles } = VIDEO_CONFIG;
-      const dateY = Math.round(height * 0.75);         // 75% from top (legacy baseline)
-      const timeY = dateY + 60;                        // 60px below date (legacy spacing)
-      const venueY = timeY + 60;                       // 60px below time (legacy spacing)
+      // Baby shower text layout (positions/styles/timing are in VIDEO_CONFIG)
+      const getPosition = (key) => getElement(key).position || {};
+      const getStyle = (key) => getElement(key).style || {};
+      const getAlign = (key) => getElement(key).align || "center";
 
-      // Text alpha: fade in at 25s over 2s (per plan)
-      const textAlpha = `if(lt(t,${TEXT_FADE_START}),0,if(lt(t,${TEXT_FADE_START + TEXT_FADE_DURATION}),((t-${TEXT_FADE_START})/${TEXT_FADE_DURATION}),1))`;
+      const buildFadeInOnlyAlpha = (start, duration) => {
+        if (!duration || duration <= 0) {
+          return `if(lt(t,${start}),0,1)`;
+        }
+        return `if(lt(t,${start}),0,if(lt(t,${start + duration}),((t-${start})/${duration}),1))`;
+      };
+
+      const buildFadeAlpha = (timing = {}) => {
+        const start = timing.fadeInStart ?? 0;
+        const duration = timing.fadeInDuration ?? 0;
+        const outStart = timing.fadeOutStart;
+        const outDuration = timing.fadeOutDuration ?? 0;
+        const fadeInExpr = buildFadeInOnlyAlpha(start, duration);
+        if (outStart == null || !outDuration || outDuration <= 0) {
+          return fadeInExpr;
+        }
+        return `if(lt(t,${start}),0,if(lt(t,${start + duration}),((t-${start})/${duration}),if(lt(t,${outStart}),1,if(lt(t,${outStart + outDuration}),1-((t-${outStart})/${outDuration}),0))))`;
+      };
 
       // Escape font paths for FFmpeg drawtext filter
-      const playfairBoldEsc = escapeFontPath(playfairBold);
-      const playfairItalicEsc = escapeFontPath(playfairItalic);
       const brightwallEsc = escapeFontPath(brightwall);
       const openSauceEsc = escapeFontPath(openSauce);
       const roxboroughEsc = escapeFontPath(roxborough);
 
-      const parentsStyle = styles.parentsName;
-      const parentsFont = parentsStyle.fontFamily === "Brightwall.ttf" ? brightwallEsc : playfairBoldEsc;
+      const fontMap = {
+        "Brightwall.ttf": brightwallEsc,
+        "Opensauce.ttf": openSauceEsc,
+        "Roxborough CF.ttf": roxboroughEsc,
+      };
+      const resolveFont = (fontFamily) => fontMap[fontFamily] || openSauceEsc;
+
+      const parentsStyle = getStyle("parentsName");
+      const parentsFont = resolveFont(parentsStyle.fontFamily);
+      const parentsPosition = getPosition("parentsName");
+      const parentsAlpha = buildFadeAlpha(getTiming("parentsName"));
 
       // Parents name
-      filterComplex += `[vid]drawtext=fontfile=${parentsFont}:text='${parentsNameText}':fontsize=${parentsStyle.fontSize}:fontcolor=${toFFmpegColor(parentsStyle.color)}:x=${alignX(positions.parentsName, "center")}:y=${alignY(positions.parentsName)}:alpha='${textAlpha}'[v1];`;
+      filterComplex += `[vid]drawtext=fontfile='${parentsFont}':text='${parentsNameText}':fontsize=${parentsStyle.fontSize}:fontcolor=${toFFmpegColor(parentsStyle.color)}:x=${alignX(parentsPosition, getAlign("parentsName"))}:y=${alignY(parentsPosition)}:alpha='${parentsAlpha}'[v1];`;
 
       let currentLayer = "v1";
 
       if (monthText) {
-        const monthStyle = styles.month;
-        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${monthText}':fontsize=${monthStyle.fontSize}:fontcolor=${toFFmpegColor(monthStyle.color)}:x=${alignX(positions.month, "center")}:y=${alignY(positions.month)}:alpha='${textAlpha}'[v2];`;
+        const monthStyle = getStyle("month");
+        const monthPosition = getPosition("month");
+        const monthAlpha = buildFadeAlpha(getTiming("month"));
+        filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(monthStyle.fontFamily)}':text='${monthText}':fontsize=${monthStyle.fontSize}:fontcolor=${toFFmpegColor(monthStyle.color)}:x=${alignX(monthPosition, getAlign("month"))}:y=${alignY(monthPosition)}:alpha='${monthAlpha}'[v2];`;
         currentLayer = "v2";
       }
 
       if (dayNameText) {
-        const dayStyle = styles.dayName;
-        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${dayNameText}':fontsize=${dayStyle.fontSize}:fontcolor=${toFFmpegColor(dayStyle.color)}:x=${alignX(positions.dayName, "left")}:y=${alignY(positions.dayName)}:alpha='${textAlpha}'[v3];`;
+        const dayStyle = getStyle("dayName");
+        const dayPosition = getPosition("dayName");
+        const dayAlpha = buildFadeAlpha(getTiming("dayName"));
+        filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(dayStyle.fontFamily)}':text='${dayNameText}':fontsize=${dayStyle.fontSize}:fontcolor=${toFFmpegColor(dayStyle.color)}:x=${alignX(dayPosition, getAlign("dayName"))}:y=${alignY(dayPosition)}:alpha='${dayAlpha}'[v3];`;
         currentLayer = "v3";
       }
 
       if (timeText) {
-        const timeStyle = styles.time;
-        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${timeText}':fontsize=${timeStyle.fontSize}:fontcolor=${toFFmpegColor(timeStyle.color)}:x=${alignX(positions.time, "right")}:y=${alignY(positions.time)}:alpha='${textAlpha}'[v4];`;
+        const timeStyle = getStyle("time");
+        const timePosition = getPosition("time");
+        const timeAlpha = buildFadeAlpha(getTiming("time"));
+        filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(timeStyle.fontFamily)}':text='${timeText}':fontsize=${timeStyle.fontSize}:fontcolor=${toFFmpegColor(timeStyle.color)}:x=${alignX(timePosition, getAlign("time"))}:y=${alignY(timePosition)}:alpha='${timeAlpha}'[v4];`;
         currentLayer = "v4";
       }
 
       if (dateNumberText) {
-        const dateStyle = styles.dateNumber;
-        filterComplex += `[${currentLayer}]drawtext=fontfile=${roxboroughEsc}:text='${dateNumberText}':fontsize=${dateStyle.fontSize}:fontcolor=${toFFmpegColor(dateStyle.color)}:x=${alignX(positions.dateNumber, "center")}:y=${alignY(positions.dateNumber)}:alpha='${textAlpha}'[v5];`;
+        const dateStyle = getStyle("dateNumber");
+        const datePosition = getPosition("dateNumber");
+        const dateAlpha = buildFadeAlpha(getTiming("dateNumber"));
+        filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(dateStyle.fontFamily)}':text='${dateNumberText}':fontsize=${dateStyle.fontSize}:fontcolor=${toFFmpegColor(dateStyle.color)}:x=${alignX(datePosition, getAlign("dateNumber"))}:y=${alignY(datePosition)}:alpha='${dateAlpha}'[v5];`;
         currentLayer = "v5";
       }
 
       if (yearText) {
-        const yearStyle = styles.year;
-        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${yearText}':fontsize=${yearStyle.fontSize}:fontcolor=${toFFmpegColor(yearStyle.color)}:x=${alignX(positions.year, "center")}:y=${alignY(positions.year)}:alpha='${textAlpha}'[v6];`;
+        const yearStyle = getStyle("year");
+        const yearPosition = getPosition("year");
+        const yearAlpha = buildFadeAlpha(getTiming("year"));
+        filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(yearStyle.fontFamily)}':text='${yearText}':fontsize=${yearStyle.fontSize}:fontcolor=${toFFmpegColor(yearStyle.color)}:x=${alignX(yearPosition, getAlign("year"))}:y=${alignY(yearPosition)}:alpha='${yearAlpha}'[v6];`;
         currentLayer = "v6";
       }
 
-      // Venue (Playfair Display Italic, 35px, white)
-      filterComplex += `[${currentLayer}]drawtext=fontfile=${playfairItalicEsc}:text='${venueText}':fontsize=35:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=${venueY}:alpha='${textAlpha}'[vout]`;
+      const venueStyle = getStyle("venue");
+      const venuePosition = getPosition("venue");
+      const venueAlpha = buildFadeAlpha(getTiming("venue"));
+      filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(venueStyle.fontFamily)}':text='${venueText}':fontsize=${venueStyle.fontSize}:fontcolor=${toFFmpegColor(venueStyle.color)}:x=${alignX(venuePosition, getAlign("venue"))}:y=${alignY(venuePosition)}:alpha='${venueAlpha}'[vout]`;
 
       // Build FFmpeg command
       // Use explicit -t on looped image input to avoid infinite stream + malformed moov atom
@@ -634,14 +689,11 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
   console.log(`[Server] Dev Mode: ${isDevMode() ? "ENABLED" : "disabled"}`);
   console.log(`[Server] Gemini API Key: ${process.env.GEMINI_API_KEY ? "Set" : "NOT SET"}`);
-  console.log(`[Server] Photo Analysis Provider: ${process.env.PHOTO_ANALYSIS_PROVIDER || "gpt"}`);
+  console.log(`[Server] Image Generation Provider: ${process.env.IMAGE_GENERATION_PROVIDER || "NOT SET"}`);
 
   // Check critical assets
   const assetPaths = {
     backgroundVideo: path.join(__dirname, "../frontend/public/assets/background.mp4"),
-    playfairRegular: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay.ttf"),
-    playfairBold: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay-Bold.ttf"),
-    playfairItalic: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay-Italic.ttf"),
     brightwall: path.join(__dirname, "../frontend/public/fonts/Brightwall.ttf"),
     openSauce: path.join(__dirname, "../frontend/public/fonts/Opensauce.ttf"),
     roxborough: path.join(__dirname, "../frontend/public/fonts/Roxborough CF.ttf"),

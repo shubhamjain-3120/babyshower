@@ -9,7 +9,7 @@
 import { isDevMode } from './devLogger';
 
 const STORAGE_KEY = 'babyshower-invite-rate-limit';
-const MAX_GENERATIONS = 10;
+const MAX_GENERATIONS = 3;
 const WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
 /**

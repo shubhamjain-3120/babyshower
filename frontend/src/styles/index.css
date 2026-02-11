@@ -59,6 +59,20 @@ button {
   --color-gray: #666666;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --cta-block-padding: 18px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --screen-pad-x: 20px;
+  --screen-pad-bottom: 20px;
+  --header-pad-y: 16px;
+  --header-pad-x: 20px;
+  --form-gap: var(--space-lg);
+  --form-group-gap: var(--space-xs);
+  --action-gap: var(--space-md);
 
   /* Safe area insets for notches and home indicators */
   --safe-area-top: env(safe-area-inset-top, 0px);
@@ -144,10 +158,10 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  padding-top: calc(16px + var(--safe-area-top));
-  padding-left: calc(20px + var(--safe-area-left));
-  padding-right: calc(20px + var(--safe-area-right));
+  padding: var(--header-pad-y) var(--header-pad-x);
+  padding-top: calc(var(--header-pad-y) + var(--safe-area-top));
+  padding-left: calc(var(--header-pad-x) + var(--safe-area-left));
+  padding-right: calc(var(--header-pad-x) + var(--safe-area-right));
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
@@ -162,7 +176,7 @@ html, body {
 .app-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   flex-shrink: 0;
 }
 
@@ -261,10 +275,10 @@ html, body {
 
 .input-screen {
   flex: 1;
-  padding: 0 20px 20px;
-  padding-bottom: calc(20px + var(--safe-area-bottom));
-  padding-left: calc(20px + var(--safe-area-left));
-  padding-right: calc(20px + var(--safe-area-right));
+  padding: 0 var(--screen-pad-x) var(--screen-pad-bottom);
+  padding-bottom: calc(var(--screen-pad-bottom) + var(--safe-area-bottom));
+  padding-left: calc(var(--screen-pad-x) + var(--safe-area-left));
+  padding-right: calc(var(--screen-pad-x) + var(--safe-area-right));
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
@@ -275,7 +289,7 @@ html, body {
   color: var(--color-white);
   padding: 12px 16px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: var(--form-gap);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -283,14 +297,14 @@ html, body {
 .form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--form-gap);
 }
 
 /* Form row - always stacked vertically */
 .form-row {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--form-gap);
 }
 
 .form-row .form-group {
@@ -300,7 +314,7 @@ html, body {
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--form-group-gap);
 }
 
 .form-group label {
@@ -348,14 +362,14 @@ html, body {
 .date-preview {
   font-size: 12px;
   color: var(--color-gray);
-  margin-top: 4px;
+  margin-top: var(--space-2xs);
 }
 
 /* Field error message */
 .field-error {
   font-size: 11px;
   color: var(--color-error);
-  margin-top: 4px;
+  margin-top: var(--space-2xs);
   display: block;
   line-height: 1.3;
 }
@@ -415,14 +429,14 @@ html, body {
 }
 
 .dev-mode-section {
-  margin-top: 12px;
+  margin-top: var(--space-sm);
 }
 
 .dev-mode-hint {
   font-size: 12px;
   color: var(--color-gray);
-  margin-bottom: 12px;
-  padding: 10px 12px;
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm);
   background: rgba(135, 206, 235, 0.05);
   border-radius: 6px;
   border-left: 3px solid var(--color-primary);
@@ -433,9 +447,9 @@ html, body {
 .dev-toggles-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 12px;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm);
   background: rgba(135, 206, 235, 0.03);
   border-radius: 8px;
   border: 1px dashed rgba(135, 206, 235, 0.2);
@@ -445,7 +459,7 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: var(--space-xs) 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
@@ -460,7 +474,7 @@ html, body {
 }
 
 .character-file-loading {
-  padding: 20px;
+  padding: var(--space-lg);
   text-align: center;
   font-size: 12px;
   color: var(--color-gray);
@@ -473,7 +487,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .character-file-preview img {
@@ -490,7 +504,7 @@ html, body {
 
 .input-with-voice {
   display: flex;
-  gap: 8px;
+  gap: var(--space-xs);
   align-items: stretch;
 }
 
@@ -589,7 +603,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .upload-icon {
@@ -626,7 +640,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 
 .photo-card-clickable {
@@ -696,7 +710,7 @@ html, body {
 .photo-pair {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 /* Swap button */
@@ -756,11 +770,12 @@ html, body {
   background-color: #DCEAF4;
   padding: var(--cta-block-padding);
   border-radius: 12px;
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .input-screen > .hero-container {
-  margin-bottom: 10px;
+  margin-top: var(--space-sm);
+  margin-bottom: var(--form-gap);
 }
 
 /* Responsive adjustments for hero container */
@@ -768,23 +783,11 @@ html, body {
   .hero-container {
     padding: var(--cta-block-padding);
   }
-
-  .status-message-box {
-    margin-left: -16px;
-    margin-right: -16px;
-    padding: 14px 16px;
-  }
 }
 
 @media (max-width: 320px) {
   .hero-container {
     padding: var(--cta-block-padding);
-  }
-
-  .status-message-box {
-    margin-left: -12px;
-    margin-right: -12px;
-    padding: 12px 12px;
   }
 }
 
@@ -834,21 +837,19 @@ html, body {
 .form-hint {
   font-size: 13px;
   color: var(--color-gray);
-  margin-top: 4px;
+  margin-top: var(--space-2xs);
   line-height: 1.4;
 }
 
 /* Status message boxes */
 .status-message-box {
-  padding: 12px 16px;
-  border-radius: 10px;
+  padding: var(--space-md) var(--screen-pad-x);
+  border-radius: 12px;
   font-size: 13px;
   line-height: 1.4;
-  margin-left: -20px;
-  margin-right: -20px;
-  margin-top: 12px;
-  padding: 16px 20px;
-  border-radius: 12px;
+  margin-left: calc(var(--screen-pad-x) * -1);
+  margin-right: calc(var(--screen-pad-x) * -1);
+  margin-top: var(--space-sm);
 }
 
 .status-message-box.status-success {
@@ -865,7 +866,7 @@ html, body {
 
 .status-message-box .status-hint {
   display: block;
-  margin-top: 4px;
+  margin-top: var(--space-2xs);
   font-size: 12px;
   opacity: 0.8;
 }
@@ -899,13 +900,13 @@ html, body {
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
+  margin: 0 auto var(--space-sm);
 }
 
 .processing-text {
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-sm);
 }
 
 /* Upload progress bar */
@@ -937,7 +938,6 @@ html, body {
 
 /* Generate button */
 .generate-btn {
-  margin-top: 10px;
   padding: var(--cta-block-padding);
   min-height: 52px;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
@@ -971,7 +971,6 @@ html, body {
 
 /* Go back button - secondary action button */
 .go-back-btn {
-  margin-top: 12px;
   padding: 14px;
   min-height: 48px;
   background: transparent;
@@ -999,7 +998,6 @@ html, body {
    ============================================================================ */
 
 .rate-limit-info {
-  margin-top: 12px;
   padding: 10px 16px;
   background: rgba(191, 158, 50, 0.1);
   border-radius: 8px;
@@ -1032,10 +1030,10 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 20px;
+  padding: var(--screen-pad-x);
   padding-top: 18vh; /* Position content at ~18% from top for visual balance */
   padding-top: calc(100px + var(--safe-area-top)); /* Account for app header */
-  padding-bottom: calc(20px + var(--safe-area-bottom));
+  padding-bottom: calc(var(--screen-pad-bottom) + var(--safe-area-bottom));
   text-align: center;
   overflow: hidden;
   background: var(--color-cream);
@@ -1057,16 +1055,16 @@ html, body {
   font-size: 19px;
   color: var(--color-primary);
   line-height: 1.4;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-xl);
 }
 
 /* Phase 4: Larger mascot container */
 .mascot-container {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-xl);
 }
 
 .mascot-container-large {
-  margin-bottom: 32px;
+  margin-bottom: var(--space-2xl);
 }
 
 /* Phase 4: Mascot 1.6× larger (200px → 320px) */
@@ -1090,7 +1088,7 @@ html, body {
 }
 
 .progress-container {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
 }
 
 .progress-bar {
@@ -1100,7 +1098,7 @@ html, body {
   background: rgba(135, 206, 235, 0.1);
   border-radius: 6px;
   overflow: hidden;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-xs);
   margin-left: auto;
   margin-right: auto;
 }
@@ -1124,7 +1122,7 @@ html, body {
 
 /* Cancel button on loading screen */
 .cancel-btn {
-  margin-top: 24px;
+  margin-top: var(--space-xl);
   padding: 12px 32px;
   background: transparent;
   color: var(--color-brown);
@@ -1156,21 +1154,21 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0 20px 20px;
-  padding-bottom: calc(20px + var(--safe-area-bottom));
-  padding-left: calc(20px + var(--safe-area-left));
-  padding-right: calc(20px + var(--safe-area-right));
+  padding: 0 var(--screen-pad-x) var(--screen-pad-bottom);
+  padding-bottom: calc(var(--screen-pad-bottom) + var(--safe-area-bottom));
+  padding-left: calc(var(--screen-pad-x) + var(--safe-area-left));
+  padding-right: calc(var(--screen-pad-x) + var(--safe-area-right));
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
 }
 
 .invite-preview {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
+  padding: var(--space-xs) 0;
+  margin-bottom: var(--space-sm);
 }
 
 .invite-image {
@@ -1217,7 +1215,7 @@ html, body {
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: var(--action-gap);
 }
 
 .download-btn,
@@ -1235,7 +1233,7 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--space-xs);
   position: relative;
   overflow: hidden;
   letter-spacing: 0.3px;
@@ -1290,7 +1288,7 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--space-xs);
   position: relative;
   overflow: hidden;
   letter-spacing: 0.3px;
@@ -1381,17 +1379,16 @@ html, body {
 @media (max-width: 414px) {
   :root {
     --cta-block-padding: 16px;
+    --screen-pad-x: 16px;
+    --screen-pad-bottom: 16px;
+    --header-pad-y: 12px;
+    --header-pad-x: 16px;
+    --form-gap: var(--space-md);
+    --action-gap: var(--space-sm);
   }
 
   .app {
     padding-top: calc(80px + var(--safe-area-top));
-  }
-
-  .app-header {
-    padding: 12px 16px;
-    padding-top: calc(12px + var(--safe-area-top));
-    padding-left: calc(16px + var(--safe-area-left));
-    padding-right: calc(16px + var(--safe-area-right));
   }
 
   .app-header-logo-img {
@@ -1407,24 +1404,8 @@ html, body {
     font-size: 10px;
   }
 
-  .input-screen,
-  .result-screen {
-    padding: 0 16px 16px;
-    padding-bottom: calc(16px + var(--safe-area-bottom));
-    padding-left: calc(16px + var(--safe-area-left));
-    padding-right: calc(16px + var(--safe-area-right));
-  }
-
   .loading-screen {
     padding-top: 15vh;
-  }
-
-  .form {
-    gap: 18px;
-  }
-
-  .action-buttons {
-    gap: 12px;
   }
 
   .download-btn,
@@ -1498,17 +1479,16 @@ html, body {
 @media (max-width: 320px) {
   :root {
     --cta-block-padding: 14px;
+    --screen-pad-x: 12px;
+    --screen-pad-bottom: 12px;
+    --header-pad-y: 10px;
+    --header-pad-x: 12px;
+    --form-gap: var(--space-sm);
+    --action-gap: var(--space-xs);
   }
 
   .app {
     padding-top: calc(70px + var(--safe-area-top));
-  }
-
-  .app-header {
-    padding: 10px 12px;
-    padding-top: calc(10px + var(--safe-area-top));
-    padding-left: calc(12px + var(--safe-area-left));
-    padding-right: calc(12px + var(--safe-area-right));
   }
 
   .app-header-logo-img {
@@ -1538,24 +1518,12 @@ html, body {
     height: 16px;
   }
 
-  .input-screen,
-  .result-screen {
-    padding: 0 12px 12px;
-    padding-bottom: calc(12px + var(--safe-area-bottom));
-    padding-left: calc(12px + var(--safe-area-left));
-    padding-right: calc(12px + var(--safe-area-right));
-  }
-
   .loading-screen {
     padding-top: 12vh;
   }
 
   .loading-text {
     font-size: 15px;
-  }
-
-  .form {
-    gap: 14px;
   }
 
   .form-group label {
@@ -1603,9 +1571,6 @@ html, body {
     min-height: 48px;
   }
 
-  .action-buttons {
-    gap: 10px;
-  }
 }
 
 /* ============================================================================
@@ -1626,7 +1591,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: var(--form-gap);
   width: 100%;
 }
 
@@ -1634,7 +1599,7 @@ html, body {
 .onboarding-logo-section {
   display: flex;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-xs);
 }
 
 .onboarding-logo {
@@ -1677,8 +1642,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  margin-top: 4px;
+  gap: var(--space-2xs);
+  margin-top: var(--space-2xs);
 }
 
 .whatsapp-logo {
@@ -1746,7 +1711,7 @@ html, body {
 .back-link-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   padding: 10px 16px;
   background: transparent;
   border: 1px solid #DDD;
@@ -1867,7 +1832,7 @@ html, body {
   }
 
   .onboarding-step {
-    gap: 28px;
+    gap: var(--space-2xl);
   }
 }
 
@@ -1904,7 +1869,7 @@ html, body {
   color: var(--color-primary);
   font-size: 20px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
   text-align: center;
   line-height: 1.4;
 }
@@ -1914,11 +1879,11 @@ html, body {
   font-size: 14px;
   font-weight: 400;
   color: var(--color-gray);
-  margin-top: 4px;
+  margin-top: var(--space-2xs);
 }
 
 .modal-photo-container {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-lg);
   text-align: center;
 }
 
@@ -1931,7 +1896,7 @@ html, body {
 }
 
 .modal-label {
-  margin-top: 8px;
+  margin-top: var(--space-xs);
   font-size: 14px;
   color: var(--color-gray);
 }
@@ -1939,13 +1904,13 @@ html, body {
 .modal-details {
   background: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .modal-detail-item {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
@@ -1959,7 +1924,7 @@ html, body {
   display: block;
   font-size: 13px;
   color: var(--color-gray);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-2xs);
 }
 
 .modal-detail-value {
@@ -1973,7 +1938,7 @@ html, body {
 .modal-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-sm);
 }
 
 .modal-btn {
