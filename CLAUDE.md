@@ -70,6 +70,7 @@ GOOGLE_GENAI_USE_VERTEXAI=true      # For Imagen 3 via Vertex AI
 GOOGLE_CLOUD_PROJECT=...            # GCP project ID
 OPENAI_API_KEY=...                  # Required if using GPT for photo analysis
 PHOTO_ANALYSIS_PROVIDER=gpt         # Photo analysis provider: "gpt" (default) or "gemini"
+IMAGE_GENERATION_PROVIDER=openai    # Image generation provider: "openai" or "gemini"
 DEV_MODE=true                       # Enhanced logging
 ```
 

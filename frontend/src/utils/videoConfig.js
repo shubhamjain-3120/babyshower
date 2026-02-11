@@ -12,88 +12,116 @@ export const VIDEO_CONFIG = {
     height: 1920,
   },
 
-  // Timing Configuration (in seconds)
-  timing: {
-    babyImage: {
+  // Shared timing presets (in seconds)
+  timings: {
+    hero: {
       fadeInStart: 15,
       fadeInDuration: 1,
-      fadeOutStart: 28,
-      fadeOutDuration: 2
+      fadeOutStart: 19,
+      fadeOutDuration: 1
     },
-    eventDetails: {
-      fadeInStart: 25,
-      fadeInDuration: 2,
-      fadeOutStart: 30,
+    details: {
+      fadeInStart: 20,
+      fadeInDuration: 1,
+      fadeOutStart: 45,
       fadeOutDuration: 0
     }
   },
 
-  // Position Configuration (x, y in pixels, 1080x1920 canvas)
-  positions: {
+  // Consolidated element configuration (position, style, timing)
+  elements: {
     babyImage: {
-      x: 540, // centered
-      y: 620, // center anchor
-      width: 520, // max width
-      height: 650 // max height
+      position: {
+        x: 540, // centered
+        y: 620, // center anchor
+        width: 520, // max width
+        height: 650 // max height
+      },
+      timingRef: "hero"
     },
-    parentsName: { x: 540, y: 980 },
-    month: { x: 540, y: 720 }, // "February"
-    dayName: { x: 380, y: 810 }, // "Thursday"
-    time: { x: 700, y: 810 }, // "7:00 PM"
-    dateNumber: { x: 540, y: 830 }, // "19"
-    year: { x: 540, y: 900 }, // "2026"
-    venue: { x: 540, y: 1600 } // "Hotel Name"
-  },
-
-  // Styling Configuration
-  styles: {
     parentsName: {
-      fontFamily: 'Brightwall.ttf',
-      fontSize: 70,
-      fontWeight: 400,
-      color: '#af7f54',
-      tracking: 0
-    },
-    dayName: {
-      fontFamily: 'Opensauce.ttf',
-      fontSize: 35,
-      fontWeight: 400,
-      color: '#4b4a4a',
-      tracking: 40
-    },
-    dateNumber: {
-      fontFamily: 'Roxborough CF.ttf',
-      fontSize: 65,
-      fontWeight: 400,
-      color: '#705e3c',
-      tracking: 0
+      position: { x: 560, y: 1080 },
+      align: "center",
+      style: {
+        fontFamily: "Brightwall.ttf",
+        fontSize: 70,
+        fontWeight: 400,
+        color: "#af7f54",
+        tracking: 0
+      },
+      timingRef: "hero"
     },
     month: {
-      fontFamily: 'Opensauce.ttf',
-      fontSize: 35,
-      fontWeight: 500,
-      color: '#4b4a4a',
-      tracking: 60
+      position: { x: 560, y: 800 }, // "February"
+      align: "center",
+      style: {
+        fontFamily: "Opensauce.ttf",
+        fontSize: 50,
+        fontWeight: 700,
+        color: "#4b4a4a",
+        tracking: 60
+      },
+      timingRef: "details"
     },
-    year: {
-      fontFamily: 'Opensauce.ttf',
-      fontSize: 35,
-      fontWeight: 400,
-      color: '#4b4a4a',
-      tracking: 80
+    dayName: {
+      position: { x: 280, y: 920 }, // "Thursday"
+      align: "center",
+      style: {
+        fontFamily: "Opensauce.ttf",
+        fontSize: 50,
+        fontWeight: 700,
+        color: "#4b4a4a",
+        tracking: 40
+      },
+      timingRef: "details"
     },
     time: {
-      fontFamily: 'Opensauce.ttf',
-      fontSize: 35,
-      fontWeight: 400,
-      color: '#4b4a4a',
-      tracking: 20
+      position: { x: 800, y: 920 }, // "7:00 PM"
+      align: "center",
+      style: {
+        fontFamily: "Opensauce.ttf",
+        fontSize: 50,
+        fontWeight: 700,
+        color: "#4b4a4a",
+        tracking: 20
+      },
+      timingRef: "details"
+    },
+    dateNumber: {
+      position: { x: 560, y: 920 }, // "19"
+      align: "center",
+      style: {
+        fontFamily: "Roxborough CF.ttf",
+        fontSize: 85,
+        fontWeight: 400,
+        color: "#705e3c",
+        tracking: 0
+      },
+      timingRef: "details"
+    },
+    year: {
+      position: { x: 560, y: 1020 }, // "2026"
+      align: "center",
+      style: {
+        fontFamily: "Opensauce.ttf",
+        fontSize: 50,
+        fontWeight: 700,
+        color: "#4b4a4a",
+        tracking: 80
+      },
+      timingRef: "details"
     },
     venue: {
-      fontFamily: 'Opensauce.ttf',
-      fontSize: 35,
-      fontWeight: 400,
-      color: '#FFFFFF'
+      position: { x: 560, y: 1200 }, // "Hotel Name"
+      align: "center",
+      style: {
+        fontFamily: "Opensauce.ttf",
+        fontSize: 50,
+        fontWeight: 400,
+        color: "#4b4a4a",
+        tracking: 0
+      },
+      timingRef: "details"
     }
   }
 };
@@ -116,6 +144,13 @@ export function calculateOpacity(currentTime, timing) {
   // During fade in
   if (currentTime < fadeInStart + fadeInDuration) {
     return (currentTime - fadeInStart) / fadeInDuration;
+  }
+
+  const hasFadeOut = fadeOutStart != null && fadeOutDuration != null && fadeOutDuration > 0;
+
+  // Fully visible (no fade out configured)
+  if (!hasFadeOut) {
+    return 1;
   }
 
   // Fully visible (between fade in and fade out)

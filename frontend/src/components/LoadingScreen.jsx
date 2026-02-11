@@ -80,7 +80,7 @@ export default function LoadingScreen({ completed = false, onCancel }) {
       <div className="loading-content">
         {/* Loading text */}
         <h2 className="loading-text">
-          your invite is being created 😊
+          your invite is brewing!
         </h2>
 
         {/* Looping loading video - no audio */}
