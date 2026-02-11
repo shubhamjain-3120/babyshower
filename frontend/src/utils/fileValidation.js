@@ -12,12 +12,12 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif
  * @returns {{valid: boolean, error?: string}} Validation result
  */
 export const validateFile = (file) => {
-  if (!file) return { valid: false, error: "No file selected" };
+  if (!file) return { valid: false, error: "no file selected" };
   if (file.size > MAX_FILE_SIZE) {
-    return { valid: false, error: "File too large. Maximum size is 10MB." };
+    return { valid: false, error: "file too large. maximum size is 10mb." };
   }
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return { valid: false, error: "Invalid file type. Please upload a JPEG, PNG, WebP, or GIF image." };
+    return { valid: false, error: "invalid file type. please upload a jpeg, png, webp, or gif image." };
   }
   return { valid: true };
 };

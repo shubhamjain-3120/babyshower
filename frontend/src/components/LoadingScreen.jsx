@@ -2,49 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { trackPageView } from "../utils/analytics";
 
 /**
- * Trivia messages shown during loading to entertain users.
- * Each message has Marwadi and English versions.
- */
-const TRIVIA_MESSAGES = [
-  {
-    mrw: "असली बजट टेस्ट वेन्यू कोनी, मिठाई रो काउंटर है।",
-    en: "The real budget test isn't the venue, it's the मिठाई counter.",
-  },
-  {
-    mrw: "मेहमानां ने वचनां सूं ज़्यादा खाना याद रह जावे।",
-    en: "Guests remember the food longer than the vows.",
-  },
-  {
-    mrw: "थारी थाली में घी कोनी है तो समझ जा, शादी गलत है।",
-    en: "If there's no ghee on your plate, you're probably at the wrong wedding.",
-  },
-  {
-    mrw: "कोई भूखो कोनी जावे, पर कई तो सीधो चाल भी कोनी पावे।",
-    en: "No one leaves hungry, some leave unable to walk properly.",
-  },
-  {
-    mrw: "मारवाड़ी शादी में डाइट प्लानां री छुट्टी हो जावे।",
-    en: "In a Marwadi wedding, diet plans are officially suspended.",
-  },
-  {
-    mrw: "सब सूं लंबी लाइन दूल्हा-दुल्हन री कोनी, मिठाई री होवे।",
-    en: "The longest queue isn't for the couple, it's for the dessert.",
-  },
-  {
-    mrw: "मारवाड़ी शादी में थाली खाली कोनी होवे, बस रीफिलां रा बीच होवे।",
-    en: "At Marwadi weddings, plates are never truly empty — only between refills.",
-  },
-  {
-    mrw: "लोग आशीर्वाद देण आवे, पण रुक्के नाश्ते खातर।",
-    en: "People come for blessings, stay for the snacks.",
-  }
-];
-
-/**
- * Loading Screen with Progress Bar and Rotating Trivia
+ * Loading Screen with Progress Bar
  *
- * Displays a loading screen with a progress bar and rotating Marwadi wedding
- * trivia messages to entertain users during the generation process.
+ * Displays a loading screen with a progress bar during the generation process.
  *
  * Progress stages:
  * - 0-90%: Increase 1% every n seconds where n is random between 1-3 seconds
@@ -54,31 +14,16 @@ const TRIVIA_MESSAGES = [
  * @param {Object} props - Component props
  * @param {boolean} [props.completed=false] - Whether the generation process is complete
  * @param {Function} [props.onCancel] - Optional callback fired when user clicks "Cancel" button
- * @returns {JSX.Element} Loading screen with progress bar and trivia messages
+ * @returns {JSX.Element} Loading screen with progress bar
  */
 export default function LoadingScreen({ completed = false, onCancel }) {
   const [progress, setProgress] = useState(0);
-  const [triviaIndex, setTriviaIndex] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
   const progressTimeoutRef = useRef(null);
-  const triviaIntervalRef = useRef(null);
 
   // Track page view on mount
   useEffect(() => {
     trackPageView('loading');
-  }, []);
-
-  // Rotate trivia every 5 seconds
-  useEffect(() => {
-    triviaIntervalRef.current = setInterval(() => {
-      setTriviaIndex((prev) => (prev + 1) % TRIVIA_MESSAGES.length);
-    }, 5000);
-
-    return () => {
-      if (triviaIntervalRef.current) {
-        clearInterval(triviaIntervalRef.current);
-      }
-    };
   }, []);
 
   // Smoothly transition to 100% when completed prop becomes true
@@ -133,20 +78,22 @@ export default function LoadingScreen({ completed = false, onCancel }) {
   return (
     <div className="loading-screen">
       <div className="loading-content">
-        {/* Hindi text - unchanged */}
+        {/* Loading text */}
         <h2 className="loading-text">
-          बस 2 मिनट सा आपरो निमंत्रण बन रह्यो है 😊
+          your invite is being created 😊
         </h2>
 
-        {/* Mascot - now primary visual, 1.6× larger */}
+        {/* Looping loading video - no audio */}
         <div className="mascot-container mascot-container-large">
-          <img
-            src="/assets/mascot.png"
-            alt="Loading mascot"
-            className="mascot mascot-large"
-            onError={(e) => {
-              e.target.style.display = "none";
-            }}
+          <video
+            className="mascot mascot-large mascot-video"
+            src="/assets/bunny-quill.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            aria-label="loading animation"
           />
         </div>
 
@@ -161,11 +108,6 @@ export default function LoadingScreen({ completed = false, onCancel }) {
           <span className="progress-text">{Math.round(progress)}%</span>
         </div>
 
-        <div className="loading-trivia">
-          <p className="trivia-primary">{TRIVIA_MESSAGES[triviaIndex].mrw}</p>
-          <p className="trivia-secondary">{TRIVIA_MESSAGES[triviaIndex].en}</p>
-        </div>
-
         {/* Cancel button */}
         {onCancel && (
           <button
@@ -173,7 +115,7 @@ export default function LoadingScreen({ completed = false, onCancel }) {
             onClick={onCancel}
             type="button"
           >
-            Cancel (रद्द करें)
+            cancel
           </button>
         )}
       </div>

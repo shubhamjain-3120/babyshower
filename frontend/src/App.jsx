@@ -175,7 +175,7 @@ export default function App() {
 
   // Initialize background music (audio instance only)
   useEffect(() => {
-    const audio = new Audio("/assets/bg_audio.mp3");
+    const audio = new Audio("/assets/loading_music.mp3");
     audio.loop = true;
     audio.volume = 0.05; // 5% volume
     audioRef.current = audio;
@@ -289,11 +289,11 @@ export default function App() {
    * 3. Compose video with character overlay and text (server-side)
    *
    * @param {Object} generationFormData - Form data with names, date, venue, photo
-   * @param {string} generationFormData.brideName - Bride's name
-   * @param {string} generationFormData.groomName - Groom's name
-   * @param {string} generationFormData.date - Wedding date (formatted)
-   * @param {string} generationFormData.venue - Wedding venue
-   * @param {File} generationFormData.photo - Uploaded couple photo
+   * @param {string} generationFormData.parentsName - Parents' names
+   * @param {string} generationFormData.date - Event date (formatted)
+   * @param {string} [generationFormData.time] - Event time (optional)
+   * @param {string} generationFormData.venue - Event venue
+   * @param {File} generationFormData.photo - Uploaded baby photo
    * @param {boolean} generationFormData.devMode - Skip API calls if true
    * @param {File} [generationFormData.characterFile] - Dev mode: local character file
    * @param {boolean} [generationFormData.skipBackgroundRemoval] - Dev mode: skip bg removal
@@ -317,8 +317,7 @@ export default function App() {
 
     logger.log("Generation started", {
       devMode: generationFormData.devMode,
-      brideName: generationFormData.brideName,
-      groomName: generationFormData.groomName,
+      parentsName: generationFormData.parentsName,
       hasPhoto: !!generationFormData.photo,
       hasCharacterFile: !!generationFormData.characterFile,
       skipExtraction: generationFormData.skipExtraction,
@@ -501,9 +500,9 @@ export default function App() {
         });
       } else {
         logger.log("Step 3: Starting video composition (server-side)", {
-          brideName: generationFormData.brideName,
-          groomName: generationFormData.groomName,
+          parentsName: generationFormData.parentsName,
           date: generationFormData.date,
+          time: generationFormData.time,
           venue: generationFormData.venue,
           characterImageLength: characterImage?.length,
         });
@@ -513,12 +512,10 @@ export default function App() {
         let lastLoggedProgress = 0;
         videoBlob = await composeVideoInvite({
           characterImage,
-          brideName: generationFormData.brideName,
-          groomName: generationFormData.groomName,
+          parentsName: generationFormData.parentsName,
           date: generationFormData.date,
           time: generationFormData.time,
-          brideParents: generationFormData.brideParentName,
-          groomParents: generationFormData.groomParentName,
+          venue: generationFormData.venue,
           onProgress: (progress) => {
             // Only log at key milestones (every 20%) to reduce noise
             if (progress >= lastLoggedProgress + 20 || progress === 100) {
@@ -640,12 +637,19 @@ export default function App() {
     </div>
   );
 
+  // Error boundary for lazy-loaded components
+  const handleLazyLoadError = (error) => {
+    logger.error("Failed to load ResultScreen component", error);
+    setError("failed to load result screen. please try again.");
+    setScreen(SCREENS.INPUT);
+  };
+
   return (
     <div className="app">
       {/* Offline banner */}
       {!isOnline && (
         <div className="offline-banner">
-          You are offline. Some features may not work.
+          you are offline. some features may not work.
         </div>
       )}
       
@@ -655,14 +659,14 @@ export default function App() {
           <div className="app-header-logo">
             <img
               src="/assets/app-logo.png"
-              alt="मारवाड़ी विवाह"
+              alt="bunny invites"
               className="app-header-logo-img"
             />
           </div>
         </div>
         <div className="app-header-title">
-          <h1>मारवाड़ी विवाह</h1>
-          <p>मारवाड़ी कूकू पत्रिका बनाएं</p>
+          <h1>bunny invites</h1>
+          <p>create cute video invites in minutes</p>
         </div>
         <div className="app-header-actions">
           {/* Show music toggle only on loading screen */}
@@ -670,8 +674,8 @@ export default function App() {
             <button
               className="music-toggle-btn"
               onClick={toggleMusic}
-              aria-label={isMusicPlaying ? "Mute background music" : "Play background music"}
-              title={isMusicPlaying ? "Mute music" : "Play music"}
+              aria-label={isMusicPlaying ? "mute background music" : "play background music"}
+              title={isMusicPlaying ? "mute music" : "play music"}
             >
               {isMusicPlaying ? <SpeakerOnIcon /> : <SpeakerOffIcon />}
             </button>
@@ -709,11 +713,10 @@ export default function App() {
 
       {/* Result Screen (lazy loaded) */}
       <Suspense fallback={<LoadingFallback />}>
-        {screen === SCREENS.RESULT && (
+        {screen === SCREENS.RESULT && finalInvite && (
           <ResultScreen
             inviteVideo={finalInvite}
-            brideName={formData?.brideName}
-            groomName={formData?.groomName}
+            parentsName={formData?.parentsName}
             venue={formData?.venue}
             onReset={handleReset}
           />

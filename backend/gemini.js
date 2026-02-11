@@ -1,13 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
-import OpenAI from "openai";
 import { createDevLogger } from "./devLogger.js";
 
 const logger = createDevLogger("Gemini");
-
-// Initialize OpenAI for photo analysis
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 // Initialize Gemini for image generation
 // Note: Imagen 3 requires Vertex AI access with proper project/location configuration
@@ -21,185 +15,6 @@ const genAI = useVertexAI
   : new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
     });
-
-// Photo analysis provider (gpt or gemini)
-const PHOTO_ANALYSIS_PROVIDER = process.env.PHOTO_ANALYSIS_PROVIDER || "gpt";
-
-//Analyze a couple photo - routes to GPT or Gemini based on env var
-export async function analyzePhoto(photo, requestId = "") {
-  logger.log(`[${requestId}] Photo analysis provider: ${PHOTO_ANALYSIS_PROVIDER}`);
-
-  if (PHOTO_ANALYSIS_PROVIDER === "gemini") {
-    return analyzePhotoWithGemini(photo, requestId);
-  } else {
-    return analyzePhotoWithGPT(photo, requestId);
-  }
-}
-
-//Analyze a couple photo using ChatGPT (GPT-4 Vision) to extract detailed descriptions
-async function analyzePhotoWithGPT(photo, requestId = "") {
-  logger.log(`[${requestId}] Starting photo analysis with ChatGPT`, {
-    photoMimetype: photo?.mimetype,
-    photoBufferLen: photo?.buffer?.length,
-  });
-  const analysisPrompt = `Role: Illustrator's Assistant. Analyze the image to generate specific artistic reference data for a stylized wedding illustration (Bride/Groom).
-
-### Constraints
-1. Output valid JSON only.
-2. NO "unknown", "hidden", or "null" values. Infer from context/proportions if partially visible.
-3. Use the specific vocabulary lists provided below.
-
-### Reference Criteria
-
-**1. Height:** [very short, short, average, tall, very tall] (Relative to each other).
-**2. Coloring:** format as "[Base Tone] with [Palette]".
-   - Base: very fair, fair, light, light-medium, medium, medium-tan, tan, olive, caramel, brown, dark/deep/rich brown.
-   - Palette: warm (golden/peachy), cool (pink/rosy), neutral, olive-toned.
-**3. Hairstyle:** Detailed description of Length, Style, Texture, and Volume.
-   - Groom specific: Fade, undercut, side-part, etc.
-**4. Body Type:** [slim, athletic, average, curvy, stocky, broad].
-**5. Face Shape:** [oval, round, square, heart, diamond, oblong].
-**6. Facial Hair (Groom):** [Clean-shaven, Light/Heavy stubble, Short/Medium/Full beard, Goatee, Mustache only, Soul patch, Van Dyke, Anchor].
-**7. Spectacles:** [none, rectangular, round, oval, cat-eye, aviator, rimless, half-rim]. Note material/color if present.
-**8. Hair Color:** [black, dark brown, brown, light brown, gray, salt and pepper, not visible]. Describe the dominant natural hair color visible in the photo. If hair is covered (hijab, turban, etc.), use "not visible".
-
-### Output JSON Structure
-{
-  "bride": {
-    "height": { "primary": "" },
-    "skin_color": { "primary": "" },
-    "hairstyle": { "primary": "" },
-    "body_shape": { "primary": "" },
-    "face_shape": { "primary": "" },
-    "spectacles": { "primary": "" },
-    "hair_color": { "primary": "" }
-  },
-  "groom": {
-    "height": { "primary": "" },
-    "coloring": { "primary": "" },
-    "hairstyle": { "primary": "" },
-    "body_shape": { "primary": "" },
-    "facial_hair_style": { "primary": "" },
-    "face_shape": { "primary": "" },
-    "spectacles": { "primary": "" },
-    "hair_color": { "primary": "" }
-  }
-}
-
-`;
-
-  // Build image content for GPT-4 Vision
-  const imageContent = [{
-    type: "image_url",
-    image_url: {
-      url: `data:${photo.mimetype};base64,${photo.buffer.toString("base64")}`,
-    },
-  }];
-
-  logger.log(`[${requestId}] Calling OpenAI GPT-4o for photo analysis`);
-  const startTime = performance.now();
-
-  let response;
-  try {
-    response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional image analysis engine. Your task is to extract physical metadata from photos for 3D/stylized character modeling.RULES: 1. ANALYTICAL OBJECTIVITY: Describe exactly what is visible. Avoid complimentary or subjective adjectives (e.g., use \"medium-tan\" instead of \"beautiful tan\"). 2.NO HEDGING: Do not use phrases like \"appears to be\" or \"possibly.\" Make a definitive choice based on visual evidence.3. JSON EXCLUSIVITY: Output ONLY the raw JSON object. Do not include markdown code blocks (\`\`\`), preambles, or post-analysis notes.4. SCHEMA ADHERENCE: Use the exact vocabulary provided in the prompt. If a feature is partially obscured, infer the most likely match based on overall proportions.", // Add system instruction here
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: analysisPrompt },
-            ...imageContent,
-          ],
-        },
-      ],
-    response_format: { type: "json_object" },
-      temperature: 0,
-      max_tokens: 1000,
-    });
-  } catch (apiError) {
-    logger.error(`[${requestId}] OpenAI API call failed`, apiError);
-    throw apiError;
-  }
-
-  const apiDuration = performance.now() - startTime;
-  logger.log(`[${requestId}] OpenAI response received`, {
-    duration: `${apiDuration.toFixed(0)}ms`
-  });
-
-  const responseText = response.choices[0]?.message?.content;
-  
-  logger.log(`[${requestId}] Parsing response`, {
-    responseTextLen: responseText?.length,
-    responseTextPreview: responseText?.slice(0, 200) + "...",
-  });
-
-  if (!responseText) {
-    logger.error(`[${requestId}] No response text from ChatGPT`, "Empty response");
-    throw new Error("ChatGPT did not return a response");
-  }
-
-  // Extract JSON from response
-  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-  
-  logger.log(`[${requestId}] JSON extraction`, {
-    jsonMatchFound: !!jsonMatch,
-    jsonMatchLen: jsonMatch?.[0]?.length,
-  });
-
-  if (!jsonMatch) {
-    // Check if this is a content policy refusal
-    if (responseText.toLowerCase().includes("sorry") || responseText.toLowerCase().includes("can't") || responseText.toLowerCase().includes("cannot")) {
-      logger.error(`[${requestId}] Content policy refusal detected`, responseText.slice(0, 500));
-      throw new Error(`AI photo analysis refused. Response: ${responseText.slice(0, 300)}`);
-    }
-    logger.error(`[${requestId}] Failed to parse JSON from response`, responseText.slice(0, 500));
-    throw new Error(`Failed to parse photo analysis. Response: ${responseText.slice(0, 300)}`);
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]);
-
-  // Remap field names from artistic prompt terminology back to internal field names
-  if (parsed.bride) {
-    if (parsed.bride.coloring) {
-      parsed.bride.skin_color = parsed.bride.coloring;
-      delete parsed.bride.coloring;
-    }
-    if (parsed.bride.body_type) {
-      parsed.bride.body_shape = parsed.bride.body_type;
-      delete parsed.bride.body_type;
-    }
-  }
-  if (parsed.groom) {
-    if (parsed.groom.coloring) {
-      parsed.groom.skin_color = parsed.groom.coloring;
-      delete parsed.groom.coloring;
-    }
-  }
-
-  // Validate hair_color values
-  const validHairColors = ["black", "dark brown", "brown", "light brown", "gray", "salt and pepper", "not visible"];
-  if (parsed.bride?.hair_color?.primary && !validHairColors.includes(parsed.bride.hair_color.primary)) {
-    logger.log(`[${requestId}] Invalid bride hair_color "${parsed.bride.hair_color.primary}", defaulting to "black"`);
-    parsed.bride.hair_color.primary = "black";
-  }
-  if (parsed.groom?.hair_color?.primary && !validHairColors.includes(parsed.groom.hair_color.primary)) {
-    logger.log(`[${requestId}] Invalid groom hair_color "${parsed.groom.hair_color.primary}", defaulting to "black"`);
-    parsed.groom.hair_color.primary = "black";
-  }
-
-  logger.log(`[${requestId}] Photo analysis complete`, {
-    hasBride: !!parsed.bride,
-    hasGroom: !!parsed.groom,
-    brideHairColor: parsed.bride?.hair_color?.primary,
-    groomHairColor: parsed.groom?.hair_color?.primary,
-  });
-
-  return parsed;
-}
 
 //Analyze a couple photo using Gemini (Gemini 2.0 Flash) to extract detailed descriptions
 async function analyzePhotoWithGemini(photo, requestId = "") {
@@ -407,18 +222,6 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelayMs = 2000, requestI
 }
 
 // Generate wedding characters: analyze photo then generate portrait
-export async function generateWeddingCharacters(photo, requestId = "") {
-  logger.log(`[${requestId}] Starting generateWeddingCharacters pipeline`);
-
-  // Step 1: Analyze photo to extract descriptions
-  const descriptions = await analyzePhoto(photo, requestId);
-
-  // Step 2: Generate portrait using Gemini
-  const result = await generateWithGemini(descriptions, requestId);
-
-  return result;
-}
-
 //Generate wedding portrait using Gemini 2.5 Flash Image model
 async function generateWithGemini(descriptions, requestId = "") {
   logger.log(`[${requestId}] Preparing Gemini generation prompt`);
@@ -549,4 +352,3 @@ async function generateWithGemini(descriptions, requestId = "") {
     mimeType: imagePart.inlineData.mimeType || "image/png",
   };
 }
-

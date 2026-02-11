@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Razorpay Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+    <h1>Razorpay Integration Test</h1>
+    <button onclick="testPayment()">Test Payment</button>
+    <div id="output"></div>
+
+    <script>
+        async function testPayment() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Creating order...';
+
+            try {
+                // Step 1: Create order
+                const response = await fetch('/api/payment/create-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        venue: 'Test Venue',
+                        currency: 'USD',
+                        amount: 4.99
+                    })
+                });
+
+                const data = await response.json();
+                output.innerHTML = `Order created: ${JSON.stringify(data, null, 2)}`;
+
+                if (!data.success) {
+                    output.innerHTML += '<br><b>Error:</b> ' + data.error;
+                    return;
+                }
+
+                // Step 2: Open Razorpay modal
+                const options = {
+                    key: 'rzp_live_SESqGObO8ybHHS',
+                    order_id: data.orderId,
+                    amount: data.amount,
+                    currency: data.currency,
+                    name: 'Test Payment',
+                    description: 'Testing Razorpay Integration',
+                    handler: function(response) {
+                        output.innerHTML = `Payment successful!<br>Payment ID: ${response.razorpay_payment_id}`;
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            output.innerHTML = 'Payment cancelled';
+                        }
+                    }
+                };
+
+                const rzp = new window.Razorpay(options);
+                rzp.open();
+
+            } catch (error) {
+                output.innerHTML = `<b>Error:</b> ${error.message}`;
+                console.error('Payment test failed:', error);
+            }
+        }
+    </script>
+</body>
+</html>

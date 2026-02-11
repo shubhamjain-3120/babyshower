@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import { rateLimit } from "express-rate-limit";
-import { generateWeddingCharacters, analyzePhoto } from "./gemini.js";
+import { generateBabyIllustration } from "./openai-image.js";
 import { createDevLogger, isDevMode } from "./devLogger.js";
 import { exec, execSync } from "child_process";
 import { promisify } from "util";
@@ -12,6 +12,7 @@ import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
 import { removeBackground } from "@imgly/background-removal-node";
+import { VIDEO_CONFIG } from "../frontend/src/utils/videoConfig.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,7 +58,7 @@ function isValidWebMBuffer(buffer) {
 
 function validatePhotoUpload(photo, requestId) {
   if (!photo) {
-    return { valid: false, status: 400, error: "Couple photo is required" };
+    return { valid: false, status: 400, error: "Baby photo is required" };
   }
   if (!isValidImageBuffer(photo.buffer)) {
     return { valid: false, status: 400, error: "Invalid image file. Please upload a valid JPEG, PNG, GIF, or WebP image." };
@@ -152,36 +153,6 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", devMode: isDevMode() });
 });
 
-// Photo extraction endpoint (extraction only, no generation)
-app.post(
-  "/api/extract",
-  upload.single("photo"),
-  async (req, res) => {
-    const requestId = Date.now().toString(36);
-
-    try {
-      const photo = req.file;
-
-      const validation = validatePhotoUpload(photo, requestId);
-      if (!validation.valid) return res.status(validation.status).json({ success: false, error: validation.error });
-
-      const descriptions = await analyzePhoto(photo, requestId);
-
-      res.json({
-        success: true,
-        descriptions,
-      });
-    } catch (error) {
-      logger.error(`[${requestId}] Extraction failed`, error);
-
-      res.status(500).json({
-        success: false,
-        error: "Photo extraction failed. Please try again.",
-      });
-    }
-  }
-);
-
 // Background removal endpoint - server-side fallback for when client-side fails
 app.post(
   "/api/remove-background",
@@ -273,17 +244,12 @@ app.post(
       const validation = validatePhotoUpload(photo, requestId);
       if (!validation.valid) return res.status(validation.status).json({ success: false, error: validation.error });
 
-      const result = await generateWeddingCharacters(photo, requestId);
+      // Generate Ghibli-style illustration using OpenAI
+      const imageBase64 = await generateBabyIllustration(photo.buffer, requestId);
 
       res.json({
         success: true,
-        characterImage: `data:${result.mimeType};base64,${result.imageData}`,
-        evaluation: result.evaluation ? {
-          score: result.evaluation.score,
-          passed: result.evaluation.passed,
-          hardRulesPassed: result.evaluation.hardRulesPassed,
-          issues: result.evaluation.details?.issues || []
-        } : null
+        characterImage: `data:image/png;base64,${imageBase64}`,
       });
     } catch (error) {
       logger.error(`[${requestId}] Generation failed`, error);
@@ -388,27 +354,28 @@ app.post(
     const requestId = Date.now().toString(36);
 
     try {
-      const { brideName, groomName, date, time, brideParents, groomParents } = req.body;
+      const { parentsName, date, time, venue } = req.body;
       const characterImage = req.file;
 
-      if (!brideName || !groomName || !date || !time || !brideParents || !groomParents) {
+      if (!parentsName || !date || !venue) {
         return res.status(400).json({
           success: false,
-          error: "Missing required fields: brideName, groomName, date, time, brideParents, groomParents",
+          error: "Missing required fields: parentsName, date, venue",
         });
       }
 
       const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "video-compose-"));
       const characterPath = path.join(tempDir, "character.png");
-      const dividerPngPath = path.join(tempDir, "divider.png");
       const outputPath = path.join(tempDir, "output.mp4");
 
       const backgroundVideoPath = path.join(__dirname, "../frontend/public/assets/background.mp4");
-      const dividerSvgPath = path.join(__dirname, "../frontend/public/assets/divider.svg");
       const fontsDir = path.join(__dirname, "../frontend/public/fonts");
       const playfairRegular = path.join(fontsDir, "PlayfairDisplay.ttf");
       const playfairBold = path.join(fontsDir, "PlayfairDisplay-Bold.ttf");
       const playfairItalic = path.join(fontsDir, "PlayfairDisplay-Italic.ttf");
+      const brightwall = path.join(fontsDir, "Brightwall.ttf");
+      const openSauce = path.join(fontsDir, "Opensauce.ttf");
+      const roxborough = path.join(fontsDir, "Roxborough CF.ttf");
 
       try {
         await fs.access(backgroundVideoPath);
@@ -424,12 +391,14 @@ app.post(
         await fs.access(playfairRegular);
         await fs.access(playfairBold);
         await fs.access(playfairItalic);
-        await fs.access(dividerSvgPath);
+        await fs.access(brightwall);
+        await fs.access(openSauce);
+        await fs.access(roxborough);
       } catch (err) {
         logger.error(`[${requestId}] Required assets NOT FOUND`, err);
         return res.status(500).json({
           success: false,
-          error: `Required assets not found. Please check fonts and divider.svg`,
+          error: `Required assets not found. Please check fonts`,
         });
       }
 
@@ -437,51 +406,84 @@ app.post(
         await fs.writeFile(characterPath, characterImage.buffer);
       }
 
-      // Convert divider.svg to PNG for overlay (width=400px for good quality)
-      try {
-        await execAsync(`convert -background none -density 300 -resize 400x "${dividerSvgPath}" "${dividerPngPath}"`);
-      } catch (convertError) {
-        logger.error(`[${requestId}] SVG to PNG conversion failed, trying rsvg-convert`, convertError);
-        try {
-          await execAsync(`rsvg-convert -w 400 "${dividerSvgPath}" -o "${dividerPngPath}"`);
-        } catch (rsvgError) {
-          logger.error(`[${requestId}] Both convert and rsvg-convert failed, skipping divider`);
-          // Continue without divider if conversion fails
+      // Video dimensions (1080x1920 portrait)
+      const { width, height } = VIDEO_CONFIG.canvas;
+
+      // Character positioning (configured in VIDEO_CONFIG)
+      const characterConfig = VIDEO_CONFIG.positions.babyImage;
+      const charMaxWidth = Math.round(characterConfig.width);
+      const charMaxHeight = Math.round(characterConfig.height);
+      const charCenterX = Math.round(characterConfig.x);
+      const charCenterY = Math.round(characterConfig.y);
+      const minTopPadding = 150;
+
+      // Baby shower animation timing (from VIDEO_CONFIG where available)
+      const babyTiming = VIDEO_CONFIG?.timing?.babyImage || {};
+      const BABY_FADE_START = babyTiming.fadeInStart ?? 15;
+      const BABY_FADE_DURATION = babyTiming.fadeInDuration ?? 1;
+      const BABY_FADE_OUT_START = babyTiming.fadeOutStart ?? 28;
+      const BABY_FADE_OUT_DURATION = babyTiming.fadeOutDuration ?? 2;
+      const TEXT_FADE_START = 20;
+      const TEXT_FADE_DURATION = 1;
+
+      const parseDateParts = (dateText) => {
+        if (!dateText || typeof dateText !== "string") {
+          return null;
         }
-      }
 
-      // Video dimensions (720p portrait for high quality)
-      const width = 720;
-      const height = 1280;
+        const trimmed = dateText.trim();
+        const monthNames = [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"
+        ];
+        const weekdayNames = [
+          "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+        ];
 
-      // Character positioning (matching client-side layout)
-      // Character takes 60% of height, centered horizontally
-      const charHeightPercent = 0.60;
-      const charTopPercent = 0.4;
-      const charHeight = Math.round(height * charHeightPercent);
-      const charY = Math.round(height * charTopPercent);
+        const match = trimmed.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+        let dateObj = null;
+        let useUTC = false;
 
-      // Text layout positions (text fades in at 10s after character fades out)
-      const brideNameY = Math.round(height * 0.18); // 18% from top = 230px
-      const brideDaughterY = brideNameY + 105;      // 105px below bride name = 335px
-      const wedsY = Math.round(height * 0.40);      // 40% from top = 512px
-      const groomNameY = 690;                       // Moved up by 20px (was 710)
-      const groomSonY = groomNameY + 105;           // 105px below groom name = 795px
-      const dividerY = Math.round(height * 0.68);   // 68% from top = 870px (moved up, now before date)
-      const dateY = dividerY + 90;                  // 90px below divider = 960px
-      const timeY = dateY + 80;                     // 80px below date = 1040px
+        if (match) {
+          const day = Number.parseInt(match[1], 10);
+          const monthIndex = monthNames.findIndex(
+            (month) => month.toLowerCase() === match[2].toLowerCase()
+          );
+          const year = Number.parseInt(match[3], 10);
 
-      // Font sizes (updated per plan)
-      const brideGroomNameSize = 80;
-      const parentLineSize = 40;  // 20 → 40
-      const wedsSize = 60;        // 24 → 60
-      const dateSize = 40;        // 24 → 40
-      const timeSize = 30;        // 20 → 30
-      // Character animation timing
-      const CHARACTER_FADE_START = 2;
-      const CHARACTER_FADE_DURATION = 2;
-      const CHARACTER_FADE_OUT_START = 8;  // Start fading out at 8s
-      const CHARACTER_FADE_OUT_DURATION = 2;  // Fade out over 2s (done by 10s)
+          if (!Number.isNaN(day) && !Number.isNaN(year) && monthIndex >= 0) {
+            dateObj = new Date(Date.UTC(year, monthIndex, day));
+            useUTC = true;
+          }
+        }
+
+        if (!dateObj || Number.isNaN(dateObj.getTime())) {
+          const fallback = new Date(trimmed);
+          if (!Number.isNaN(fallback.getTime())) {
+            dateObj = fallback;
+            useUTC = false;
+          }
+        }
+
+        if (!dateObj || Number.isNaN(dateObj.getTime())) {
+          return null;
+        }
+
+        return {
+          dayName: weekdayNames[useUTC ? dateObj.getUTCDay() : dateObj.getDay()],
+          dateNumber: String(useUTC ? dateObj.getUTCDate() : dateObj.getDate()),
+          month: monthNames[useUTC ? dateObj.getUTCMonth() : dateObj.getMonth()],
+          year: String(useUTC ? dateObj.getUTCFullYear() : dateObj.getFullYear()),
+        };
+      };
+
+      const toFFmpegColor = (hex) => `0x${hex.replace("#", "")}`;
+      const alignX = (position, alignment) => {
+        if (alignment === "center") return `${position.x}-(text_w/2)`;
+        if (alignment === "right") return `${position.x}-(text_w)`;
+        return `${position.x}`;
+      };
+      const alignY = (position) => `${position.y}-(text_h/2)`;
 
       // Escape special characters for FFmpeg drawtext
       const escapeText = (text) => text.replace(/'/g, "'\\''").replace(/:/g, "\\:");
@@ -489,82 +491,95 @@ app.post(
       // Escape font file paths for FFmpeg (colons need escaping, use forward slashes)
       const escapeFontPath = (fontPath) => fontPath.replace(/\\/g, '/').replace(/:/g, '\\:');
 
-      // Build text for each line
-      const brideNameText = escapeText(brideName);
-      const brideDaughterText = escapeText(`(Daughter of ${brideParents})`);
-      const wedsText = "WEDS";
-      const groomNameText = escapeText(groomName);
-      const groomSonText = escapeText(`(Son of ${groomParents})`);
-      const dateText = escapeText(date);
-      const timeText = escapeText(`${time} onwards`);
+      // Build text for baby shower
+      const parentsNameText = escapeText(parentsName);
+      const dateParts = parseDateParts(date);
+      const dayNameText = escapeText((dateParts?.dayName || "").toUpperCase());
+      const dateNumberText = escapeText(dateParts?.dateNumber || "");
+      const monthText = escapeText((dateParts?.month || "").toUpperCase());
+      const yearText = escapeText(dateParts?.year || "");
+      const timeText = time ? escapeText(time.toUpperCase()) : "";
+      const venueText = escapeText(venue);
 
-      // Check if divider PNG was created successfully
-      let dividerExists = false;
-      try {
-        await fs.access(dividerPngPath);
-        dividerExists = true;
-      } catch {
-        // Divider not available, will skip in filter
-      }
-
-      // Layers: scaled video → character overlay → divider overlay → text overlays
+      // Layers: scaled video → baby image overlay → text overlays
       let filterComplex = `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}[bg];`;
 
       let inputIndex = 1;
       if (characterImage) {
-        // Scale character image, fade in at 2s, fade out by 10s
-        filterComplex += `[${inputIndex}:v]scale=-1:${charHeight},format=rgba,fade=in:st=${CHARACTER_FADE_START}:d=${CHARACTER_FADE_DURATION}:alpha=1,fade=out:st=${CHARACTER_FADE_OUT_START}:d=${CHARACTER_FADE_OUT_DURATION}:alpha=1[char];`;
-        filterComplex += `[bg][char]overlay=(W-w)/2:${charY}[vid];`;
+        // Scale baby image, fade in/out based on VIDEO_CONFIG
+        const babyFadeOutFilter = BABY_FADE_OUT_DURATION > 0
+          ? `,fade=out:st=${BABY_FADE_OUT_START}:d=${BABY_FADE_OUT_DURATION}:alpha=1`
+          : "";
+        filterComplex += `[${inputIndex}:v]scale=${charMaxWidth}:${charMaxHeight}:force_original_aspect_ratio=decrease,format=rgba,fade=in:st=${BABY_FADE_START}:d=${BABY_FADE_DURATION}:alpha=1${babyFadeOutFilter}[char];`;
+        // Escape comma in max() so FFmpeg doesn't treat it as a filter separator
+        filterComplex += `[bg][char]overlay=${charCenterX}-(w/2):max(${minTopPadding}\\,${charCenterY}-(h/2))[vid];`;
         inputIndex++;
       } else {
         filterComplex += `[bg]copy[vid];`;
       }
 
-      // Add divider overlay with fade-in at 10s (if available)
-      if (dividerExists) {
-        filterComplex += `[${inputIndex}:v]scale=400:-1,format=rgba,fade=in:st=10:d=2:alpha=1[divider];`;
-        filterComplex += `[vid][divider]overlay=(W-w)/2:${dividerY}[vid2];`;
-      } else {
-        filterComplex += `[vid]copy[vid2];`;
-      }
+      // Baby shower text layout (positions are in VIDEO_CONFIG)
+      const { positions, styles } = VIDEO_CONFIG;
+      const dateY = Math.round(height * 0.75);         // 75% from top (legacy baseline)
+      const timeY = dateY + 60;                        // 60px below date (legacy spacing)
+      const venueY = timeY + 60;                       // 60px below time (legacy spacing)
 
-      // Add text overlays with fade-in at 10s over 2s duration
-      // Alpha expression: invisible until 10s, fade from 0 to 1 between 10-12s, then fully visible
-      const textAlpha = "if(lt(t,10),0,if(lt(t,12),((t-10)/2),1))";
+      // Text alpha: fade in at 25s over 2s (per plan)
+      const textAlpha = `if(lt(t,${TEXT_FADE_START}),0,if(lt(t,${TEXT_FADE_START + TEXT_FADE_DURATION}),((t-${TEXT_FADE_START})/${TEXT_FADE_DURATION}),1))`;
 
       // Escape font paths for FFmpeg drawtext filter
       const playfairBoldEsc = escapeFontPath(playfairBold);
       const playfairItalicEsc = escapeFontPath(playfairItalic);
+      const brightwallEsc = escapeFontPath(brightwall);
+      const openSauceEsc = escapeFontPath(openSauce);
+      const roxboroughEsc = escapeFontPath(roxborough);
 
-      // Bride name (Playfair Display Bold, 80px, #621d35)
-      filterComplex += `[vid2]drawtext=fontfile=${playfairBoldEsc}:text='${brideNameText}':fontsize=${brideGroomNameSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${brideNameY}:alpha='${textAlpha}'[v1];`;
+      const parentsStyle = styles.parentsName;
+      const parentsFont = parentsStyle.fontFamily === "Brightwall.ttf" ? brightwallEsc : playfairBoldEsc;
 
-      // Daughter of... (Playfair Display Italic, 40px, #621d35)
-      filterComplex += `[v1]drawtext=fontfile=${playfairItalicEsc}:text='${brideDaughterText}':fontsize=${parentLineSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${brideDaughterY}:alpha='${textAlpha}'[v2];`;
+      // Parents name
+      filterComplex += `[vid]drawtext=fontfile=${parentsFont}:text='${parentsNameText}':fontsize=${parentsStyle.fontSize}:fontcolor=${toFFmpegColor(parentsStyle.color)}:x=${alignX(positions.parentsName, "center")}:y=${alignY(positions.parentsName)}:alpha='${textAlpha}'[v1];`;
 
-      // WEDS (Playfair Display Italic, 60px, #621d35)
-      filterComplex += `[v2]drawtext=fontfile=${playfairItalicEsc}:text='${wedsText}':fontsize=${wedsSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${wedsY}:alpha='${textAlpha}'[v3];`;
+      let currentLayer = "v1";
 
-      // Groom name (Playfair Display Bold, 80px, #621d35)
-      filterComplex += `[v3]drawtext=fontfile=${playfairBoldEsc}:text='${groomNameText}':fontsize=${brideGroomNameSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${groomNameY}:alpha='${textAlpha}'[v4];`;
+      if (monthText) {
+        const monthStyle = styles.month;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${monthText}':fontsize=${monthStyle.fontSize}:fontcolor=${toFFmpegColor(monthStyle.color)}:x=${alignX(positions.month, "center")}:y=${alignY(positions.month)}:alpha='${textAlpha}'[v2];`;
+        currentLayer = "v2";
+      }
 
-      // Son of... (Playfair Display Italic, 40px, #621d35)
-      filterComplex += `[v4]drawtext=fontfile=${playfairItalicEsc}:text='${groomSonText}':fontsize=${parentLineSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${groomSonY}:alpha='${textAlpha}'[v5];`;
+      if (dayNameText) {
+        const dayStyle = styles.dayName;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${dayNameText}':fontsize=${dayStyle.fontSize}:fontcolor=${toFFmpegColor(dayStyle.color)}:x=${alignX(positions.dayName, "left")}:y=${alignY(positions.dayName)}:alpha='${textAlpha}'[v3];`;
+        currentLayer = "v3";
+      }
 
-      // Date (Playfair Display Italic, 40px, #621d35)
-      filterComplex += `[v5]drawtext=fontfile=${playfairItalicEsc}:text='${dateText}':fontsize=${dateSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${dateY}:alpha='${textAlpha}'[v6];`;
+      if (timeText) {
+        const timeStyle = styles.time;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${timeText}':fontsize=${timeStyle.fontSize}:fontcolor=${toFFmpegColor(timeStyle.color)}:x=${alignX(positions.time, "right")}:y=${alignY(positions.time)}:alpha='${textAlpha}'[v4];`;
+        currentLayer = "v4";
+      }
 
-      // Time onwards (Playfair Display Italic, 30px, #621d35)
-      filterComplex += `[v6]drawtext=fontfile=${playfairItalicEsc}:text='${timeText}':fontsize=${timeSize}:fontcolor=0x621D35:x=(w-text_w)/2:y=${timeY}:alpha='${textAlpha}'[vout]`;
+      if (dateNumberText) {
+        const dateStyle = styles.dateNumber;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${roxboroughEsc}:text='${dateNumberText}':fontsize=${dateStyle.fontSize}:fontcolor=${toFFmpegColor(dateStyle.color)}:x=${alignX(positions.dateNumber, "center")}:y=${alignY(positions.dateNumber)}:alpha='${textAlpha}'[v5];`;
+        currentLayer = "v5";
+      }
+
+      if (yearText) {
+        const yearStyle = styles.year;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${yearText}':fontsize=${yearStyle.fontSize}:fontcolor=${toFFmpegColor(yearStyle.color)}:x=${alignX(positions.year, "center")}:y=${alignY(positions.year)}:alpha='${textAlpha}'[v6];`;
+        currentLayer = "v6";
+      }
+
+      // Venue (Playfair Display Italic, 35px, white)
+      filterComplex += `[${currentLayer}]drawtext=fontfile=${playfairItalicEsc}:text='${venueText}':fontsize=35:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=${venueY}:alpha='${textAlpha}'[vout]`;
 
       // Build FFmpeg command
       // Use explicit -t on looped image input to avoid infinite stream + malformed moov atom
       let inputs = `-i "${backgroundVideoPath}"`;
       if (characterImage) {
-        inputs += ` -loop 1 -t 15 -i "${characterPath}"`;
-      }
-      if (dividerExists) {
-        inputs += ` -loop 1 -t 15 -i "${dividerPngPath}"`;
+        inputs += ` -loop 1 -t 30 -i "${characterPath}"`;
       }
 
       const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset fast -r 24 -crf 23 -maxrate 2500k -bufsize 5000k -c:a aac -b:a 128k -pix_fmt yuv420p -movflags +faststart -shortest "${outputPath}"`;
@@ -624,10 +639,12 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   // Check critical assets
   const assetPaths = {
     backgroundVideo: path.join(__dirname, "../frontend/public/assets/background.mp4"),
-    dividerSvg: path.join(__dirname, "../frontend/public/assets/divider.svg"),
     playfairRegular: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay.ttf"),
     playfairBold: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay-Bold.ttf"),
     playfairItalic: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay-Italic.ttf"),
+    brightwall: path.join(__dirname, "../frontend/public/fonts/Brightwall.ttf"),
+    openSauce: path.join(__dirname, "../frontend/public/fonts/Opensauce.ttf"),
+    roxborough: path.join(__dirname, "../frontend/public/fonts/Roxborough CF.ttf"),
   };
 
   for (const [name, filePath] of Object.entries(assetPaths)) {

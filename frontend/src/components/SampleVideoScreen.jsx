@@ -29,8 +29,7 @@ export default function SampleVideoScreen({ onProceed }) {
         {/* Hero headline */}
         <div className="hero-container">
           <div className="sample-video-value-hindi">
-            <label>एक फोटो अपलोड करें. मिनटों में पाएँ WhatsApp-ready वीडियो निमंत्रण.</label>
-            <p className="form-hint">Upload one photo. Get a WhatsApp-ready video invite in minutes.</p>
+            <label>upload one photo. get a whatsapp-ready video invite in minutes.</label>
           </div>
         </div>
 
@@ -53,7 +52,7 @@ export default function SampleVideoScreen({ onProceed }) {
           style={{ marginTop: '0' }}
           onClick={handleProceed}
         >
-          फोटो अपलोड करें (Upload Photo)
+          upload photo
         </button>
       </div>
     </div>

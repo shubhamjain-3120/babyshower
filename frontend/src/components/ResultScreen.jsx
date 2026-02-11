@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
 import { isIAPEnabled, shouldBypassIAP, purchaseVideoDownload, getProductInfo } from "../utils/iapManager";
+import { isRazorpayEnabled, purchaseVideoDownload as razorpayPurchase } from "../utils/razorpayManager";
+import { getUserRegion } from "../utils/paymentPlatform";
 
 const logger = createDevLogger("ResultScreen");
 
@@ -26,7 +28,7 @@ function getFileExtension(blob) {
   return type === 'video/mp4' ? 'mp4' : 'webm';
 }
 
-export default function ResultScreen({ inviteVideo, brideName, groomName, venue, onReset }) {
+export default function ResultScreen({ inviteVideo, parentsName, venue, onReset }) {
   const [mediaUrl, setMediaUrl] = useState(null);
   const [isImage, setIsImage] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
@@ -73,20 +75,33 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
     }
   }, [inviteVideo]);
 
-  // Determine if IAP is required for this download
+  // Determine payment requirements
+  const userRegion = getUserRegion();
+  const isRazorpay = isRazorpayEnabled();
   const requiresIAP = isIAPEnabled() && !shouldBypassIAP(venue) && !hasPurchased;
+  const requiresPayment = (requiresIAP || isRazorpay) && !hasPurchased;
+
+  // Debug logging
+  logger.log("Payment Config", {
+    isRazorpay,
+    requiresPayment,
+    requiresIAP,
+    userRegion,
+    venue
+  });
 
   // Get display price for button
   const productInfo = getProductInfo();
-  const buttonPrice = productInfo?.price || import.meta.env.VITE_IAP_PRICE_DISPLAY || '₹10';
+  const buttonPrice = isRazorpay
+    ? userRegion.displayPrice
+    : (productInfo?.price || import.meta.env.VITE_IAP_PRICE_DISPLAY || '₹10');
 
   // Internal download logic (extracted from original handleDownload)
   const handleDownloadInternal = useCallback(() => {
     trackClick(isImage ? 'image_download' : 'video_download');
 
     logger.log("Download initiated", {
-      brideName,
-      groomName,
+      parentsName,
       mediaSize: inviteVideo instanceof Blob ? `${(inviteVideo.size / 1024 / 1024).toFixed(2)} MB` : "N/A",
       mediaType: inviteVideo instanceof Blob ? inviteVideo.type : "N/A",
       isImage,
@@ -107,8 +122,8 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
 
     const extension = getFileExtension(inviteVideo);
 
-    // Sanitize names to prevent filename injection
-    link.download = `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`;
+    // Sanitize name to prevent filename injection
+    link.download = `babyshower-invite-${sanitizeForFilename(parentsName)}.${extension}`;
 
     document.body.appendChild(link);
     link.click();
@@ -120,14 +135,19 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
     }
 
     logger.log("Download complete", { filename: link.download, actualType: inviteVideo?.type });
-  }, [inviteVideo, brideName, groomName, isImage]);
+  }, [inviteVideo, parentsName, isImage]);
 
   // Purchase handler
   const handlePurchase = useCallback(async () => {
     setIsPurchasing(true);
-    logger.log("Initiating purchase flow");
+    logger.log("Initiating purchase flow", { isRazorpay });
 
-    const result = await purchaseVideoDownload();
+    let result;
+    if (isRazorpay) {
+      result = await razorpayPurchase(venue, userRegion);
+    } else {
+      result = await purchaseVideoDownload();
+    }
 
     if (result.success) {
       logger.log("Purchase successful - unlocking download");
@@ -139,31 +159,31 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
       }, 100);
     } else if (result.error !== 'cancelled') {
       // Show error alert (except for user cancellation)
-      alert(`Purchase failed: ${result.error}`);
+      alert(`purchase failed: ${result.error}`);
       logger.error("Purchase failed", result.error);
     }
 
     setIsPurchasing(false);
-  }, [handleDownloadInternal]);
+  }, [handleDownloadInternal, isRazorpay, venue, userRegion]);
 
-  // Main download handler with IAP gate
+  // Main download handler with payment gate
   const handleDownload = useCallback(() => {
-    if (requiresIAP) {
+    if (requiresPayment) {
       handlePurchase();
     } else {
       handleDownloadInternal();
     }
-  }, [requiresIAP, handlePurchase, handleDownloadInternal]);
+  }, [requiresPayment, handlePurchase, handleDownloadInternal]);
 
   const handleShare = useCallback(async () => {
-    logger.log("Share initiated", { brideName, groomName, isImage });
+    logger.log("Share initiated", { parentsName, isImage });
 
     try {
       let file;
       
       if (inviteVideo instanceof Blob) {
         const extension = getFileExtension(inviteVideo);
-        file = new File([inviteVideo], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
+        file = new File([inviteVideo], `babyshower-invite-${sanitizeForFilename(parentsName)}.${extension}`, {
           type: inviteVideo.type,
         });
         logger.log("Created file from Blob for sharing", { extension, mimeType: inviteVideo.type });
@@ -172,7 +192,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
         const response = await fetch(inviteVideo);
         const blob = await response.blob();
         const extension = getFileExtension(blob);
-        file = new File([blob], `wedding-invite-${sanitizeForFilename(groomName)}-${sanitizeForFilename(brideName)}.${extension}`, {
+        file = new File([blob], `babyshower-invite-${sanitizeForFilename(parentsName)}.${extension}`, {
           type: blob.type,
         });
       }
@@ -185,8 +205,8 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
         trackClick(isImage ? 'image_share' : 'video_share', { share_method: 'native' });
         logger.log("Using Web Share API");
         await navigator.share({
-          title: `${groomName} & ${brideName} Wedding Invite`,
-          text: `We're getting married! 🎉🌺\nPlease join us in making this a joyful celebration.`,
+          title: `${parentsName} baby shower invite`,
+          text: `join us for a baby shower celebration! 🎉👶\ncelebrating the upcoming arrival.`,
           files: [file],
         });
         logger.log("Share completed successfully");
@@ -195,24 +215,24 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
         trackClick(isImage ? 'image_share' : 'video_share', { share_method: 'whatsapp_fallback' });
         logger.log("Falling back to WhatsApp share");
         const text = encodeURIComponent(
-          `We're getting married! 🎉🌺\nPlease join us in making this a joyful celebration.`
+          `join us for a baby shower celebration! 🎉👶\ncelebrating the upcoming arrival.`
         );
         window.open(`https://wa.me/?text=${text}`, "_blank");
-        alert(`Download the ${isImage ? 'image' : 'video'} and attach it to your WhatsApp message`);
+        alert(`download the ${isImage ? 'image' : 'video'} and attach it to your whatsapp message`);
       }
     } catch (err) {
       if (err.name !== "AbortError") {
         logger.error("Share failed", err);
         // Fallback to WhatsApp
         const text = encodeURIComponent(
-          `We're getting married! 🎉🌺\nPlease join us in making this a joyful celebration.`
+          `join us for a baby shower celebration! 🎉👶\ncelebrating the upcoming arrival.`
         );
         window.open(`https://wa.me/?text=${text}`, "_blank");
       } else {
         logger.log("Share cancelled by user");
       }
     }
-  }, [inviteVideo, brideName, groomName, isImage]);
+  }, [inviteVideo, parentsName, isImage]);
 
   return (
     <div className="result-screen">
@@ -222,7 +242,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
             <img 
               src={mediaUrl} 
               className="invite-image" 
-              alt="Wedding invite preview"
+              alt="baby shower invite preview"
             />
           ) : (
             <video
@@ -236,21 +256,31 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
             />
           )
         ) : (
-          <div className="video-loading">Loading {isImage ? 'image' : 'video'}...</div>
+          <div className="video-loading">loading {isImage ? 'image' : 'video'}...</div>
         )}
       </div>
 
       <div className="action-buttons">
         {/* Conditional Download/Buy button */}
         <button
-          className={requiresIAP ? "buy-download-btn" : "download-btn"}
+          className={requiresPayment ? "buy-download-btn" : "download-btn"}
           onClick={handleDownload}
           disabled={isPurchasing}
         >
           {isPurchasing ? (
-            <>⏳ Processing...</>
-          ) : requiresIAP ? (
-            <>💳 Buy & Download ({buttonPrice})</>
+            <>⏳ processing...</>
+          ) : requiresPayment ? (
+            isRazorpay ? (
+              <>
+                💳 buy now to download{' '}
+                <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>
+                  {userRegion.isIndia ? '₹1000' : '$11.99'}
+                </span>
+                {' '}{buttonPrice} only
+              </>
+            ) : (
+              <>💳 buy & download ({buttonPrice})</>
+            )
           ) : (
             <>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -258,18 +288,18 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              {isImage ? 'Download Image (डाउनलोड)' : 'Download Video (डाउनलोड)'}
-            </>
+              {isImage ? 'download image' : 'download video'}
+</>
           )}
         </button>
 
         {/* Share button - only show after purchase/free download */}
-        {!requiresIAP && (
+        {!requiresPayment && (
           <button className="share-btn" onClick={handleShare}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
             </svg>
-            Share (शेयर करें)
+            share
           </button>
         )}
 
@@ -277,7 +307,7 @@ export default function ResultScreen({ inviteVideo, brideName, groomName, venue,
           trackClick('start_over');
           onReset();
         }}>
-          Start Over (फिर से शुरू करें)
+          start over
         </button>
       </div>
     </div>
