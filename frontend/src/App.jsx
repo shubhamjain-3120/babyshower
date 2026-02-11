@@ -175,7 +175,7 @@ export default function App() {
 
   // Initialize background music (audio instance only)
   useEffect(() => {
-    const audio = new Audio("/assets/bg_audio.mp3");
+    const audio = new Audio("/assets/loading_music.mp3");
     audio.loop = true;
     audio.volume = 0.05; // 5% volume
     audioRef.current = audio;
@@ -637,12 +637,19 @@ export default function App() {
     </div>
   );
 
+  // Error boundary for lazy-loaded components
+  const handleLazyLoadError = (error) => {
+    logger.error("Failed to load ResultScreen component", error);
+    setError("failed to load result screen. please try again.");
+    setScreen(SCREENS.INPUT);
+  };
+
   return (
     <div className="app">
       {/* Offline banner */}
       {!isOnline && (
         <div className="offline-banner">
-          You are offline. Some features may not work.
+          you are offline. some features may not work.
         </div>
       )}
       
@@ -652,14 +659,14 @@ export default function App() {
           <div className="app-header-logo">
             <img
               src="/assets/app-logo.png"
-              alt="मारवाड़ी विवाह"
+              alt="bunny invites"
               className="app-header-logo-img"
             />
           </div>
         </div>
         <div className="app-header-title">
-          <h1>मारवाड़ी विवाह</h1>
-          <p>मारवाड़ी कूकू पत्रिका बनाएं</p>
+          <h1>bunny invites</h1>
+          <p>create cute video invites in minutes</p>
         </div>
         <div className="app-header-actions">
           {/* Show music toggle only on loading screen */}
@@ -667,8 +674,8 @@ export default function App() {
             <button
               className="music-toggle-btn"
               onClick={toggleMusic}
-              aria-label={isMusicPlaying ? "Mute background music" : "Play background music"}
-              title={isMusicPlaying ? "Mute music" : "Play music"}
+              aria-label={isMusicPlaying ? "mute background music" : "play background music"}
+              title={isMusicPlaying ? "mute music" : "play music"}
             >
               {isMusicPlaying ? <SpeakerOnIcon /> : <SpeakerOffIcon />}
             </button>
@@ -706,7 +713,7 @@ export default function App() {
 
       {/* Result Screen (lazy loaded) */}
       <Suspense fallback={<LoadingFallback />}>
-        {screen === SCREENS.RESULT && (
+        {screen === SCREENS.RESULT && finalInvite && (
           <ResultScreen
             inviteVideo={finalInvite}
             parentsName={formData?.parentsName}

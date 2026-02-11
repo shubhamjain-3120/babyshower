@@ -91,8 +91,8 @@ export async function purchaseVideoDownload(venue, userRegion) {
         order_id: orderId,
         amount,
         currency,
-        name: 'मारवाड़ी विवाह',
-        description: 'Wedding Invite Video Download',
+        name: 'bunny invites',
+        description: 'Invite Video Download',
         image: '/assets/app-logo.png',
         handler: async function(response) {
           // Step 3: Verify payment

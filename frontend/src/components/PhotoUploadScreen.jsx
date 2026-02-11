@@ -61,6 +61,17 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
 
     setPhoto(file);
     e.target.value = ""; // Allow re-selecting same file
+
+    // Start background processing immediately after photo selection
+    if (processingServiceRef.current) {
+      // Cancel any in-flight processing for a previous photo
+      processingServiceRef.current.cancel();
+      logger.log("Starting background processing after photo selection", {
+        photoSize: `${(file.size / 1024).toFixed(1)} KB`,
+        photoType: file.type,
+      });
+      processingServiceRef.current.startProcessing(file, apiUrl);
+    }
   };
 
   // Handle changing photo
@@ -84,7 +95,7 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
 
   const handleProceed = () => {
     if (!photo) {
-      alert("Please upload a photo first");
+      alert("please upload a photo first");
       return;
     }
 
@@ -94,6 +105,7 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
     onPhotoSelected({
       photo,
       processingService: processingServiceRef.current,
+      processingState: processingServiceRef.current?.getStatus?.(),
     });
   };
 
@@ -103,16 +115,16 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
         {/* Header */}
         <div className="hero-container">
           <div className="form-group">
-            <label>Photo Upload</label>
+            <label>photo upload</label>
             <p className="form-hint">
-              Choose a clear, good quality baby photo
+              choose a clear, good quality baby photo
             </p>
           </div>
         </div>
 
         {/* Upload Section */}
         <div className="form-group">
-          <label>Baby Photo</label>
+          <label>baby photo</label>
           {!photo ? (
             <button
               type="button"
@@ -123,7 +135,7 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
               }}
             >
               <span className="upload-icon">+</span>
-              <span className="upload-text">Select Your Photo</span>
+              <span className="upload-text">select your photo</span>
             </button>
           ) : (
             <div className="photo-single">
@@ -133,16 +145,16 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
                 style={{ cursor: 'pointer' }}
               >
                 <div className="photo-preview" style={{ position: 'relative', width: '100%', height: 'auto', maxWidth: '280px' }}>
-                  <img src={photoUrl} alt="Selected photo" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                  <img src={photoUrl} alt="selected photo" style={{ width: '100%', height: 'auto', display: 'block' }} />
 
                   {/* Change Photo Button */}
                   <button
                     type="button"
                     className="change-photo-btn"
                     onClick={handleChangePhoto}
-                    aria-label="Change photo"
+                    aria-label="change photo"
                   >
-                    Change Photo
+                    change photo
                   </button>
                 </div>
               </div>
@@ -156,7 +168,7 @@ export default function PhotoUploadScreen({ onPhotoSelected, apiUrl }) {
           onClick={handleProceed}
           disabled={!photo}
         >
-          {photo ? "Continue" : "Select Photo"}
+          {photo ? "continue" : "select photo"}
         </button>
 
         <input

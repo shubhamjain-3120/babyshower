@@ -1,7 +1,7 @@
 {
-  "name": "मारवाड़ी विवाह - Wedding Invite Generator",
-  "short_name": "मारवाड़ी विवाह",
-  "description": "Generate beautiful Marwadi wedding invitations in 2 minutes",
+  "name": "bunny invites",
+  "short_name": "bunny invites",
+  "description": "create cute video invites in minutes",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFF8DC",

@@ -145,20 +145,20 @@ export default function InputScreen({
     
     if (!currentLimit.canGenerate && !devMode) {
       logger.warn("Rate limit", "Generation limit reached");
-      alert(`You've reached the limit of ${getMaxGenerations()} invites per week. Please try again in ${formatResetTime(currentLimit.resetAt)}.`);
+      alert(`you've reached the limit of ${getMaxGenerations()} invites per week. please try again in ${formatResetTime(currentLimit.resetAt)}.`);
       return;
     }
 
     if (!parentsName.trim() || !eventDate || !venue.trim()) {
       logger.warn("Form validation", "Missing required fields");
-      alert("Please fill all required fields");
+      alert("please fill all required fields");
       return;
     }
 
     // Photo comes from props (already validated in PhotoUploadScreen)
     if (!photo) {
       logger.warn("Form validation", "Photo required - should not happen");
-      alert("No photo selected. Please go back and upload a photo.");
+      alert("no photo selected. please go back and upload a photo.");
       return;
     }
 
@@ -208,31 +208,31 @@ export default function InputScreen({
           <div className="confirmation-modal">
             {/* Header */}
             <h2 className="modal-header">
-              Please Confirm Details
+              please confirm details
             </h2>
 
             {/* Photo Preview */}
             <div className="modal-photo-container">
-              <img src={URL.createObjectURL(photo)} alt="Baby photo" />
-              <p className="modal-label">Photo</p>
+              <img src={URL.createObjectURL(photo)} alt="baby photo" />
+              <p className="modal-label">photo</p>
             </div>
 
             {/* Details */}
             <div className="modal-details">
               <div className="modal-detail-item">
-                <span className="modal-detail-label">Parents' Name:</span>
+                <span className="modal-detail-label">parents' name:</span>
                 <span className="modal-detail-value">{validatedFormData.parentsName}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">Time:</span>
-                <span className="modal-detail-value">{validatedFormData.time || 'Not specified'}</span>
+                <span className="modal-detail-label">time:</span>
+                <span className="modal-detail-value">{validatedFormData.time || 'not specified'}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">Date:</span>
+                <span className="modal-detail-label">date:</span>
                 <span className="modal-detail-value">{validatedFormData.date}</span>
               </div>
               <div className="modal-detail-item">
-                <span className="modal-detail-label">Venue:</span>
+                <span className="modal-detail-label">venue:</span>
                 <span className="modal-detail-value">{validatedFormData.venue}</span>
               </div>
             </div>
@@ -246,7 +246,7 @@ export default function InputScreen({
                   onGenerate(validatedFormData);
                 }}
               >
-                Proceed
+                proceed
               </button>
               <button
                 className="modal-btn modal-btn-edit"
@@ -255,7 +255,7 @@ export default function InputScreen({
                   setValidatedFormData(null);
                 }}
               >
-                Edit Details
+                edit details
               </button>
             </div>
           </div>
@@ -263,23 +263,23 @@ export default function InputScreen({
       )}
 
       {/* Hero headline */}
-      <div className="hero-container" style={{ marginBottom: '20px' }}>
+      <div className="hero-container">
         <div className="sample-video-value-hindi">
-          <label>Fill in your baby shower details</label>
+          <label>fill in your baby shower details</label>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="form">
         {/* Parents Name */}
         <div className="form-group">
-          <label htmlFor="parentsName">Parents' Name</label>
+          <label htmlFor="parentsName">parents' name</label>
           <div className="input-with-voice">
             <input
               type="text"
               id="parentsName"
               value={parentsName}
               onChange={(e) => setParentsName(e.target.value)}
-              placeholder="e.g., John & Mary Smith"
+              placeholder="e.g., john & mary smith"
               autoComplete="off"
               autoCapitalize="words"
               inputMode="text"
@@ -291,7 +291,7 @@ export default function InputScreen({
                 type="button"
                 className={`voice-btn ${isListening && activeField === "parentsName" ? "listening" : ""}`}
                 onClick={() => handleVoiceInput("parentsName", setParentsName)}
-                aria-label="Voice input for parents name"
+                aria-label="voice input for parents name"
               >
                 <svg className="voice-icon" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
@@ -302,20 +302,20 @@ export default function InputScreen({
           </div>
           {parentsName.length >= CHAR_LIMITS.parentsName && (
             <span className="field-error">
-              Name is too long
+              name is too long
             </span>
           )}
         </div>
 
         {/* Time Section */}
         <div className="form-group">
-          <label htmlFor="eventTime">Time</label>
+          <label htmlFor="eventTime">time</label>
           <select
             id="eventTime"
             value={eventTime}
             onChange={(e) => setEventTime(e.target.value)}
           >
-            <option value="">Select time</option>
+            <option value="">select time</option>
             <option value="6am">6am</option>
             <option value="7am">7am</option>
             <option value="8am">8am</option>
@@ -340,7 +340,7 @@ export default function InputScreen({
 
         {/* Date Section */}
         <div className="form-group">
-          <label htmlFor="eventDate">Date</label>
+          <label htmlFor="eventDate">date</label>
           <input
             type="date"
             id="eventDate"
@@ -357,14 +357,14 @@ export default function InputScreen({
 
         {/* Venue Section */}
         <div className="form-group">
-          <label htmlFor="venue">Venue & City</label>
+          <label htmlFor="venue">venue</label>
           <div className="input-with-voice">
             <input
               type="text"
               id="venue"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
-              placeholder="e.g., Hotel Rambagh Palace, Jaipur"
+              placeholder="e.g., 123 4th st"
               autoComplete="off"
               autoCapitalize="words"
               inputMode="text"
@@ -376,7 +376,7 @@ export default function InputScreen({
                 type="button"
                 className={`voice-btn ${isListening && activeField === "venue" ? "listening" : ""}`}
                 onClick={() => handleVoiceInput("venue", setVenue)}
-                aria-label="Voice input for venue"
+                aria-label="voice input for venue"
               >
                 <svg className="voice-icon" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
@@ -387,7 +387,7 @@ export default function InputScreen({
           </div>
           {venue.length >= CHAR_LIMITS.venue && (
             <span className="field-error">
-              Text is too long
+              text is too long
             </span>
           )}
         </div>
@@ -397,54 +397,54 @@ export default function InputScreen({
           <div className="form-group">
             <div className="dev-mode-section">
               <p className="dev-mode-hint">
-                Dev Mode Active - Control which pipeline steps to skip
+                dev mode active - control which pipeline steps to skip
               </p>
               
               {/* Dev Mode Toggles */}
               <div className="dev-toggles-panel">
                 <div className="dev-toggle-row">
-                  <span className="dev-toggle-label">Skip Extraction</span>
+                  <span className="dev-toggle-label">skip extraction</span>
                   <button
                     type="button"
                     className={`toggle-switch ${skipExtraction ? 'toggle-on' : ''}`}
                     onClick={() => setSkipExtraction(!skipExtraction)}
-                    aria-label="Toggle skip extraction"
+                    aria-label="toggle skip extraction"
                   >
                     <span className="toggle-knob" />
                   </button>
                 </div>
                 
                 <div className="dev-toggle-row">
-                  <span className="dev-toggle-label">Skip Image Generation</span>
+                  <span className="dev-toggle-label">skip image generation</span>
                   <button
                     type="button"
                     className={`toggle-switch ${skipImageGeneration ? 'toggle-on' : ''}`}
                     onClick={() => setSkipImageGeneration(!skipImageGeneration)}
-                    aria-label="Toggle skip image generation"
+                    aria-label="toggle skip image generation"
                   >
                     <span className="toggle-knob" />
                   </button>
                 </div>
                 
                 <div className="dev-toggle-row">
-                  <span className="dev-toggle-label">Skip Background Removal</span>
+                  <span className="dev-toggle-label">skip background removal</span>
                   <button
                     type="button"
                     className={`toggle-switch ${skipBackgroundRemoval ? 'toggle-on' : ''}`}
                     onClick={() => setSkipBackgroundRemoval(!skipBackgroundRemoval)}
-                    aria-label="Toggle skip background removal"
+                    aria-label="toggle skip background removal"
                   >
                     <span className="toggle-knob" />
                   </button>
                 </div>
                 
                 <div className="dev-toggle-row">
-                  <span className="dev-toggle-label">Skip Video Generation</span>
+                  <span className="dev-toggle-label">skip video generation</span>
                   <button
                     type="button"
                     className={`toggle-switch ${skipVideoGeneration ? 'toggle-on' : ''}`}
                     onClick={() => setSkipVideoGeneration(!skipVideoGeneration)}
-                    aria-label="Toggle skip video generation"
+                    aria-label="toggle skip video generation"
                   >
                     <span className="toggle-knob" />
                   </button>
@@ -463,7 +463,7 @@ export default function InputScreen({
           className="generate-btn"
           disabled={!hasPhoto || (!devMode && !rateLimit.canGenerate)}
         >
-          {devMode ? "Generate Invite (Dev Mode)" : "Generate Invite"}
+          {devMode ? "generate invite (dev mode)" : "generate invite"}
         </button>
 
         {/* Go Back Button */}
@@ -473,7 +473,7 @@ export default function InputScreen({
             className="go-back-btn"
             onClick={onBack}
           >
-            Go Back
+            go back
           </button>
         )}
 
@@ -487,7 +487,7 @@ export default function InputScreen({
               </span>
             ) : (
               <span className="rate-limit-exceeded">
-                Limit reached. Resets in {formatResetTime(rateLimit.resetAt)}
+                limit reached. resets in {formatResetTime(rateLimit.resetAt)}
               </span>
             )}
           </div>

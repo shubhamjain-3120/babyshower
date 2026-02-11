@@ -2,24 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { trackPageView } from "../utils/analytics";
 
 /**
- * Trivia messages shown during loading to entertain users.
- */
-const TRIVIA_MESSAGES = [
-  "The real budget test isn't the venue, it's the dessert counter.",
-  "Guests remember the food longer than the vows.",
-  "If there's no ghee on your plate, you're probably at the wrong wedding.",
-  "No one leaves hungry, some leave unable to walk properly.",
-  "In a Marwadi wedding, diet plans are officially suspended.",
-  "The longest queue isn't for the couple, it's for the dessert.",
-  "At Marwadi weddings, plates are never truly empty — only between refills.",
-  "People come for blessings, stay for the snacks."
-];
-
-/**
- * Loading Screen with Progress Bar and Rotating Trivia
+ * Loading Screen with Progress Bar
  *
- * Displays a loading screen with a progress bar and rotating Marwadi wedding
- * trivia messages to entertain users during the generation process.
+ * Displays a loading screen with a progress bar during the generation process.
  *
  * Progress stages:
  * - 0-90%: Increase 1% every n seconds where n is random between 1-3 seconds
@@ -29,31 +14,16 @@ const TRIVIA_MESSAGES = [
  * @param {Object} props - Component props
  * @param {boolean} [props.completed=false] - Whether the generation process is complete
  * @param {Function} [props.onCancel] - Optional callback fired when user clicks "Cancel" button
- * @returns {JSX.Element} Loading screen with progress bar and trivia messages
+ * @returns {JSX.Element} Loading screen with progress bar
  */
 export default function LoadingScreen({ completed = false, onCancel }) {
   const [progress, setProgress] = useState(0);
-  const [triviaIndex, setTriviaIndex] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
   const progressTimeoutRef = useRef(null);
-  const triviaIntervalRef = useRef(null);
 
   // Track page view on mount
   useEffect(() => {
     trackPageView('loading');
-  }, []);
-
-  // Rotate trivia every 5 seconds
-  useEffect(() => {
-    triviaIntervalRef.current = setInterval(() => {
-      setTriviaIndex((prev) => (prev + 1) % TRIVIA_MESSAGES.length);
-    }, 5000);
-
-    return () => {
-      if (triviaIntervalRef.current) {
-        clearInterval(triviaIntervalRef.current);
-      }
-    };
   }, []);
 
   // Smoothly transition to 100% when completed prop becomes true
@@ -110,18 +80,20 @@ export default function LoadingScreen({ completed = false, onCancel }) {
       <div className="loading-content">
         {/* Loading text */}
         <h2 className="loading-text">
-          Your invite is being created 😊
+          your invite is being created 😊
         </h2>
 
-        {/* Mascot - now primary visual, 1.6× larger */}
+        {/* Looping loading video - no audio */}
         <div className="mascot-container mascot-container-large">
-          <img
-            src="/assets/mascot.png"
-            alt="Loading mascot"
-            className="mascot mascot-large"
-            onError={(e) => {
-              e.target.style.display = "none";
-            }}
+          <video
+            className="mascot mascot-large mascot-video"
+            src="/assets/bunny-quill.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            aria-label="loading animation"
           />
         </div>
 
@@ -136,10 +108,6 @@ export default function LoadingScreen({ completed = false, onCancel }) {
           <span className="progress-text">{Math.round(progress)}%</span>
         </div>
 
-        <div className="loading-trivia">
-          <p className="trivia-primary">{TRIVIA_MESSAGES[triviaIndex]}</p>
-        </div>
-
         {/* Cancel button */}
         {onCancel && (
           <button
@@ -147,7 +115,7 @@ export default function LoadingScreen({ completed = false, onCancel }) {
             onClick={onCancel}
             type="button"
           >
-            Cancel
+            cancel
           </button>
         )}
       </div>

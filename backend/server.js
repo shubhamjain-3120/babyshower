@@ -12,6 +12,7 @@ import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
 import { removeBackground } from "@imgly/background-removal-node";
+import { VIDEO_CONFIG } from "../frontend/src/utils/videoConfig.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -372,6 +373,9 @@ app.post(
       const playfairRegular = path.join(fontsDir, "PlayfairDisplay.ttf");
       const playfairBold = path.join(fontsDir, "PlayfairDisplay-Bold.ttf");
       const playfairItalic = path.join(fontsDir, "PlayfairDisplay-Italic.ttf");
+      const brightwall = path.join(fontsDir, "Brightwall.ttf");
+      const openSauce = path.join(fontsDir, "Opensauce.ttf");
+      const roxborough = path.join(fontsDir, "Roxborough CF.ttf");
 
       try {
         await fs.access(backgroundVideoPath);
@@ -387,6 +391,9 @@ app.post(
         await fs.access(playfairRegular);
         await fs.access(playfairBold);
         await fs.access(playfairItalic);
+        await fs.access(brightwall);
+        await fs.access(openSauce);
+        await fs.access(roxborough);
       } catch (err) {
         logger.error(`[${requestId}] Required assets NOT FOUND`, err);
         return res.status(500).json({
@@ -399,22 +406,84 @@ app.post(
         await fs.writeFile(characterPath, characterImage.buffer);
       }
 
-      // Video dimensions (720p portrait for high quality)
-      const width = 720;
-      const height = 1280;
+      // Video dimensions (1080x1920 portrait)
+      const { width, height } = VIDEO_CONFIG.canvas;
 
-      // Character positioning (matching client-side layout)
-      // Character takes 60% of height, centered horizontally
-      const charHeightPercent = 0.60;
-      const charTopPercent = 0.4;
-      const charHeight = Math.round(height * charHeightPercent);
-      const charY = Math.round(height * charTopPercent);
+      // Character positioning (configured in VIDEO_CONFIG)
+      const characterConfig = VIDEO_CONFIG.positions.babyImage;
+      const charMaxWidth = Math.round(characterConfig.width);
+      const charMaxHeight = Math.round(characterConfig.height);
+      const charCenterX = Math.round(characterConfig.x);
+      const charCenterY = Math.round(characterConfig.y);
+      const minTopPadding = 150;
 
-      // Baby shower animation timing (per plan: baby at 20s, details at 25s)
-      const BABY_FADE_START = 20;
-      const BABY_FADE_DURATION = 1;
-      const TEXT_FADE_START = 25;
-      const TEXT_FADE_DURATION = 2;
+      // Baby shower animation timing (from VIDEO_CONFIG where available)
+      const babyTiming = VIDEO_CONFIG?.timing?.babyImage || {};
+      const BABY_FADE_START = babyTiming.fadeInStart ?? 15;
+      const BABY_FADE_DURATION = babyTiming.fadeInDuration ?? 1;
+      const BABY_FADE_OUT_START = babyTiming.fadeOutStart ?? 28;
+      const BABY_FADE_OUT_DURATION = babyTiming.fadeOutDuration ?? 2;
+      const TEXT_FADE_START = 20;
+      const TEXT_FADE_DURATION = 1;
+
+      const parseDateParts = (dateText) => {
+        if (!dateText || typeof dateText !== "string") {
+          return null;
+        }
+
+        const trimmed = dateText.trim();
+        const monthNames = [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"
+        ];
+        const weekdayNames = [
+          "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+        ];
+
+        const match = trimmed.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+        let dateObj = null;
+        let useUTC = false;
+
+        if (match) {
+          const day = Number.parseInt(match[1], 10);
+          const monthIndex = monthNames.findIndex(
+            (month) => month.toLowerCase() === match[2].toLowerCase()
+          );
+          const year = Number.parseInt(match[3], 10);
+
+          if (!Number.isNaN(day) && !Number.isNaN(year) && monthIndex >= 0) {
+            dateObj = new Date(Date.UTC(year, monthIndex, day));
+            useUTC = true;
+          }
+        }
+
+        if (!dateObj || Number.isNaN(dateObj.getTime())) {
+          const fallback = new Date(trimmed);
+          if (!Number.isNaN(fallback.getTime())) {
+            dateObj = fallback;
+            useUTC = false;
+          }
+        }
+
+        if (!dateObj || Number.isNaN(dateObj.getTime())) {
+          return null;
+        }
+
+        return {
+          dayName: weekdayNames[useUTC ? dateObj.getUTCDay() : dateObj.getDay()],
+          dateNumber: String(useUTC ? dateObj.getUTCDate() : dateObj.getDate()),
+          month: monthNames[useUTC ? dateObj.getUTCMonth() : dateObj.getMonth()],
+          year: String(useUTC ? dateObj.getUTCFullYear() : dateObj.getFullYear()),
+        };
+      };
+
+      const toFFmpegColor = (hex) => `0x${hex.replace("#", "")}`;
+      const alignX = (position, alignment) => {
+        if (alignment === "center") return `${position.x}-(text_w/2)`;
+        if (alignment === "right") return `${position.x}-(text_w)`;
+        return `${position.x}`;
+      };
+      const alignY = (position) => `${position.y}-(text_h/2)`;
 
       // Escape special characters for FFmpeg drawtext
       const escapeText = (text) => text.replace(/'/g, "'\\''").replace(/:/g, "\\:");
@@ -424,8 +493,12 @@ app.post(
 
       // Build text for baby shower
       const parentsNameText = escapeText(parentsName);
-      const dateText = escapeText(date);
-      const timeText = time ? escapeText(time) : "";
+      const dateParts = parseDateParts(date);
+      const dayNameText = escapeText((dateParts?.dayName || "").toUpperCase());
+      const dateNumberText = escapeText(dateParts?.dateNumber || "");
+      const monthText = escapeText((dateParts?.month || "").toUpperCase());
+      const yearText = escapeText(dateParts?.year || "");
+      const timeText = time ? escapeText(time.toUpperCase()) : "";
       const venueText = escapeText(venue);
 
       // Layers: scaled video → baby image overlay → text overlays
@@ -433,52 +506,80 @@ app.post(
 
       let inputIndex = 1;
       if (characterImage) {
-        // Scale baby image, fade in at 20s (per plan)
-        filterComplex += `[${inputIndex}:v]scale=-1:${charHeight},format=rgba,fade=in:st=${BABY_FADE_START}:d=${BABY_FADE_DURATION}:alpha=1[char];`;
-        filterComplex += `[bg][char]overlay=(W-w)/2:${charY}[vid];`;
+        // Scale baby image, fade in/out based on VIDEO_CONFIG
+        const babyFadeOutFilter = BABY_FADE_OUT_DURATION > 0
+          ? `,fade=out:st=${BABY_FADE_OUT_START}:d=${BABY_FADE_OUT_DURATION}:alpha=1`
+          : "";
+        filterComplex += `[${inputIndex}:v]scale=${charMaxWidth}:${charMaxHeight}:force_original_aspect_ratio=decrease,format=rgba,fade=in:st=${BABY_FADE_START}:d=${BABY_FADE_DURATION}:alpha=1${babyFadeOutFilter}[char];`;
+        // Escape comma in max() so FFmpeg doesn't treat it as a filter separator
+        filterComplex += `[bg][char]overlay=${charCenterX}-(w/2):max(${minTopPadding}\\,${charCenterY}-(h/2))[vid];`;
         inputIndex++;
       } else {
         filterComplex += `[bg]copy[vid];`;
       }
 
-      // Baby shower text layout (simplified, no divider)
-      // Text positions
-      const parentsNameY = Math.round(height * 0.15);  // 15% from top
-      const dateY = Math.round(height * 0.75);         // 75% from top
-      const timeY = dateY + 60;                        // 60px below date
-      const venueY = timeY + 60;                       // 60px below time
+      // Baby shower text layout (positions are in VIDEO_CONFIG)
+      const { positions, styles } = VIDEO_CONFIG;
+      const dateY = Math.round(height * 0.75);         // 75% from top (legacy baseline)
+      const timeY = dateY + 60;                        // 60px below date (legacy spacing)
+      const venueY = timeY + 60;                       // 60px below time (legacy spacing)
 
       // Text alpha: fade in at 25s over 2s (per plan)
-      const textAlpha = \`if(lt(t,${TEXT_FADE_START}),0,if(lt(t,${TEXT_FADE_START + TEXT_FADE_DURATION}),((t-${TEXT_FADE_START})/${TEXT_FADE_DURATION}),1))\`;
+      const textAlpha = `if(lt(t,${TEXT_FADE_START}),0,if(lt(t,${TEXT_FADE_START + TEXT_FADE_DURATION}),((t-${TEXT_FADE_START})/${TEXT_FADE_DURATION}),1))`;
 
       // Escape font paths for FFmpeg drawtext filter
       const playfairBoldEsc = escapeFontPath(playfairBold);
       const playfairItalicEsc = escapeFontPath(playfairItalic);
+      const brightwallEsc = escapeFontPath(brightwall);
+      const openSauceEsc = escapeFontPath(openSauce);
+      const roxboroughEsc = escapeFontPath(roxborough);
 
-      // Parents name (Playfair Display Bold, 60px, sky blue #87CEEB)
-      filterComplex += \`[vid]drawtext=fontfile=\${playfairBoldEsc}:text='\${parentsNameText}':fontsize=60:fontcolor=0x87CEEB:x=(w-text_w)/2:y=\${parentsNameY}:alpha='\${textAlpha}'[v1];\`;
+      const parentsStyle = styles.parentsName;
+      const parentsFont = parentsStyle.fontFamily === "Brightwall.ttf" ? brightwallEsc : playfairBoldEsc;
 
-      // Date (Playfair Display Italic, 40px, white)
-      filterComplex += \`[v1]drawtext=fontfile=\${playfairItalicEsc}:text='\${dateText}':fontsize=40:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=\${dateY}:alpha='\${textAlpha}'[v2];\`;
+      // Parents name
+      filterComplex += `[vid]drawtext=fontfile=${parentsFont}:text='${parentsNameText}':fontsize=${parentsStyle.fontSize}:fontcolor=${toFFmpegColor(parentsStyle.color)}:x=${alignX(positions.parentsName, "center")}:y=${alignY(positions.parentsName)}:alpha='${textAlpha}'[v1];`;
 
-      // Time (if provided)
-      let currentLayer = 'v2';
+      let currentLayer = "v1";
+
+      if (monthText) {
+        const monthStyle = styles.month;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${monthText}':fontsize=${monthStyle.fontSize}:fontcolor=${toFFmpegColor(monthStyle.color)}:x=${alignX(positions.month, "center")}:y=${alignY(positions.month)}:alpha='${textAlpha}'[v2];`;
+        currentLayer = "v2";
+      }
+
+      if (dayNameText) {
+        const dayStyle = styles.dayName;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${dayNameText}':fontsize=${dayStyle.fontSize}:fontcolor=${toFFmpegColor(dayStyle.color)}:x=${alignX(positions.dayName, "left")}:y=${alignY(positions.dayName)}:alpha='${textAlpha}'[v3];`;
+        currentLayer = "v3";
+      }
+
       if (timeText) {
-        filterComplex += \`[\${currentLayer}]drawtext=fontfile=\${playfairItalicEsc}:text='\${timeText}':fontsize=35:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=\${timeY}:alpha='\${textAlpha}'[v3];\`;
-        currentLayer = 'v3';
+        const timeStyle = styles.time;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${timeText}':fontsize=${timeStyle.fontSize}:fontcolor=${toFFmpegColor(timeStyle.color)}:x=${alignX(positions.time, "right")}:y=${alignY(positions.time)}:alpha='${textAlpha}'[v4];`;
+        currentLayer = "v4";
+      }
+
+      if (dateNumberText) {
+        const dateStyle = styles.dateNumber;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${roxboroughEsc}:text='${dateNumberText}':fontsize=${dateStyle.fontSize}:fontcolor=${toFFmpegColor(dateStyle.color)}:x=${alignX(positions.dateNumber, "center")}:y=${alignY(positions.dateNumber)}:alpha='${textAlpha}'[v5];`;
+        currentLayer = "v5";
+      }
+
+      if (yearText) {
+        const yearStyle = styles.year;
+        filterComplex += `[${currentLayer}]drawtext=fontfile=${openSauceEsc}:text='${yearText}':fontsize=${yearStyle.fontSize}:fontcolor=${toFFmpegColor(yearStyle.color)}:x=${alignX(positions.year, "center")}:y=${alignY(positions.year)}:alpha='${textAlpha}'[v6];`;
+        currentLayer = "v6";
       }
 
       // Venue (Playfair Display Italic, 35px, white)
-      filterComplex += \`[\${currentLayer}]drawtext=fontfile=\${playfairItalicEsc}:text='\${venueText}':fontsize=35:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=\${venueY}:alpha='\${textAlpha}'[vout]\`;
+      filterComplex += `[${currentLayer}]drawtext=fontfile=${playfairItalicEsc}:text='${venueText}':fontsize=35:fontcolor=0xFFFFFF:x=(w-text_w)/2:y=${venueY}:alpha='${textAlpha}'[vout]`;
 
       // Build FFmpeg command
       // Use explicit -t on looped image input to avoid infinite stream + malformed moov atom
       let inputs = `-i "${backgroundVideoPath}"`;
       if (characterImage) {
-        inputs += ` -loop 1 -t 15 -i "${characterPath}"`;
-      }
-      if (dividerExists) {
-        inputs += ` -loop 1 -t 15 -i "${dividerPngPath}"`;
+        inputs += ` -loop 1 -t 30 -i "${characterPath}"`;
       }
 
       const ffmpegCmd = `ffmpeg -y ${inputs} -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset fast -r 24 -crf 23 -maxrate 2500k -bufsize 5000k -c:a aac -b:a 128k -pix_fmt yuv420p -movflags +faststart -shortest "${outputPath}"`;
@@ -538,10 +639,12 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   // Check critical assets
   const assetPaths = {
     backgroundVideo: path.join(__dirname, "../frontend/public/assets/background.mp4"),
-    dividerSvg: path.join(__dirname, "../frontend/public/assets/divider.svg"),
     playfairRegular: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay.ttf"),
     playfairBold: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay-Bold.ttf"),
     playfairItalic: path.join(__dirname, "../frontend/public/fonts/PlayfairDisplay-Italic.ttf"),
+    brightwall: path.join(__dirname, "../frontend/public/fonts/Brightwall.ttf"),
+    openSauce: path.join(__dirname, "../frontend/public/fonts/Opensauce.ttf"),
+    roxborough: path.join(__dirname, "../frontend/public/fonts/Roxborough CF.ttf"),
   };
 
   for (const [name, filePath] of Object.entries(assetPaths)) {

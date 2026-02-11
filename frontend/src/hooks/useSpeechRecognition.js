@@ -38,7 +38,7 @@ export default function useSpeechRecognition() {
   const startListening = useCallback(
     (fieldId, onResult) => {
       if (!isSupported) {
-        alert("Voice input is not supported in this browser");
+        alert("voice input is not supported in this browser");
         return;
       }
 
@@ -80,7 +80,7 @@ export default function useSpeechRecognition() {
         setActiveField(null);
 
         if (event.error === "not-allowed") {
-          alert("Microphone access denied. Please allow microphone access.");
+          alert("microphone access denied. please allow microphone access.");
         }
       };
 

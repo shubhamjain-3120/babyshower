@@ -58,6 +58,7 @@ button {
   --color-error: #DC3545;
   --color-gray: #666666;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --cta-block-padding: 18px;
 
   /* Safe area insets for notches and home indicators */
   --safe-area-top: env(safe-area-inset-top, 0px);
@@ -748,24 +749,24 @@ html, body {
 /* Uses input-screen class as the base, minimal additional styling needed */
 
 /* ============================================================================
-   YELLOW HERO CONTAINER - Full width container matching header
+   HERO CONTAINER - Aligned with form buttons
    ============================================================================ */
 
 .hero-container {
-  background-color: #fffacd;
-  padding: 16px 20px;
+  background-color: #DCEAF4;
+  padding: var(--cta-block-padding);
   border-radius: 12px;
-  margin-left: -20px;
-  margin-right: -20px;
-  margin-top: 12px;
+  margin-top: 10px;
+}
+
+.input-screen > .hero-container {
+  margin-bottom: 10px;
 }
 
 /* Responsive adjustments for hero container */
 @media (max-width: 414px) {
   .hero-container {
-    margin-left: -16px;
-    margin-right: -16px;
-    padding: 14px 16px;
+    padding: var(--cta-block-padding);
   }
 
   .status-message-box {
@@ -777,9 +778,7 @@ html, body {
 
 @media (max-width: 320px) {
   .hero-container {
-    margin-left: -12px;
-    margin-right: -12px;
-    padding: 12px 12px;
+    padding: var(--cta-block-padding);
   }
 
   .status-message-box {
@@ -939,7 +938,7 @@ html, body {
 /* Generate button */
 .generate-btn {
   margin-top: 10px;
-  padding: 18px;
+  padding: var(--cta-block-padding);
   min-height: 52px;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: var(--color-white);
@@ -1081,6 +1080,15 @@ html, body {
   max-height: 320px;
 }
 
+.mascot-video {
+  width: 320px;
+  max-width: 80vw;
+  height: auto;
+  display: block;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
 .progress-container {
   margin-bottom: 20px;
 }
@@ -1112,30 +1120,6 @@ html, body {
   font-size: 13px;
   color: var(--color-brown);
   font-weight: 500;
-}
-
-.loading-trivia {
-  text-align: center;
-  margin-top: 16px;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
-  border: 1px solid rgba(135, 206, 235, 0.1);
-}
-
-.trivia-primary {
-  font-size: 15px;
-  color: var(--color-brown);
-  font-weight: 600;
-  margin-bottom: 6px;
-  line-height: 1.4;
-}
-
-.trivia-secondary {
-  font-size: 12px;
-  color: var(--color-brown);
-  opacity: 0.7;
-  line-height: 1.3;
 }
 
 /* Cancel button on loading screen */
@@ -1395,6 +1379,10 @@ html, body {
 
 /* Medium mobile devices (iPhone Plus/Max, Android) - 414px and below */
 @media (max-width: 414px) {
+  :root {
+    --cta-block-padding: 16px;
+  }
+
   .app {
     padding-top: calc(80px + var(--safe-area-top));
   }
@@ -1492,7 +1480,6 @@ html, body {
   }
 
   .generate-btn {
-    padding: 16px;
     font-size: 14px;
   }
 
@@ -1509,6 +1496,10 @@ html, body {
 
 /* Very small devices (iPhone SE 1st gen, older Android) - 320px and below */
 @media (max-width: 320px) {
+  :root {
+    --cta-block-padding: 14px;
+  }
+
   .app {
     padding-top: calc(70px + var(--safe-area-top));
   }
@@ -1580,7 +1571,6 @@ html, body {
   }
 
   .generate-btn {
-    padding: 14px;
     font-size: 13px;
   }
 
@@ -1900,7 +1890,7 @@ html, body {
 }
 
 .confirmation-modal {
-  background: #fffacd;
+  background: #EAF3FA;
   border-radius: 16px;
   max-width: 450px;
   width: 100%;

@@ -15,10 +15,10 @@ export const VIDEO_CONFIG = {
   // Timing Configuration (in seconds)
   timing: {
     babyImage: {
-      fadeInStart: 20,
+      fadeInStart: 15,
       fadeInDuration: 1,
-      fadeOutStart: 30, // never fades out if > video duration
-      fadeOutDuration: 0
+      fadeOutStart: 28,
+      fadeOutDuration: 2
     },
     eventDetails: {
       fadeInStart: 25,
@@ -32,56 +32,62 @@ export const VIDEO_CONFIG = {
   positions: {
     babyImage: {
       x: 540, // centered
-      y: 800, // middle-ish
-      width: 400, // max width
-      height: 600 // max height
+      y: 620, // center anchor
+      width: 520, // max width
+      height: 650 // max height
     },
-    parentsName: { x: 540, y: 200 },
-    dayName: { x: 540, y: 1200 }, // "Thursday"
-    dateNumber: { x: 540, y: 1280 }, // "19"
-    month: { x: 540, y: 1360 }, // "February"
-    year: { x: 540, y: 1440 }, // "2026"
-    time: { x: 540, y: 1520 }, // "7:00 PM"
+    parentsName: { x: 540, y: 980 },
+    month: { x: 540, y: 720 }, // "February"
+    dayName: { x: 380, y: 810 }, // "Thursday"
+    time: { x: 700, y: 810 }, // "7:00 PM"
+    dateNumber: { x: 540, y: 830 }, // "19"
+    year: { x: 540, y: 900 }, // "2026"
     venue: { x: 540, y: 1600 } // "Hotel Name"
   },
 
   // Styling Configuration
   styles: {
     parentsName: {
-      fontFamily: 'Opensauce.ttf',
-      fontSize: 48,
-      fontWeight: 700,
-      color: '#4A6B8A' // blue-gray
+      fontFamily: 'Brightwall.ttf',
+      fontSize: 70,
+      fontWeight: 400,
+      color: '#af7f54',
+      tracking: 0
     },
     dayName: {
       fontFamily: 'Opensauce.ttf',
       fontSize: 35,
       fontWeight: 400,
-      color: '#FFFFFF'
+      color: '#4b4a4a',
+      tracking: 40
     },
     dateNumber: {
       fontFamily: 'Roxborough CF.ttf',
-      fontSize: 72,
-      fontWeight: 700,
-      color: '#87CEEB' // sky blue
+      fontSize: 65,
+      fontWeight: 400,
+      color: '#705e3c',
+      tracking: 0
     },
     month: {
       fontFamily: 'Opensauce.ttf',
       fontSize: 35,
-      fontWeight: 400,
-      color: '#FFFFFF'
+      fontWeight: 500,
+      color: '#4b4a4a',
+      tracking: 60
     },
     year: {
       fontFamily: 'Opensauce.ttf',
       fontSize: 35,
       fontWeight: 400,
-      color: '#FFFFFF'
+      color: '#4b4a4a',
+      tracking: 80
     },
     time: {
       fontFamily: 'Opensauce.ttf',
       fontSize: 35,
       fontWeight: 400,
-      color: '#FFFFFF'
+      color: '#4b4a4a',
+      tracking: 20
     },
     venue: {
       fontFamily: 'Opensauce.ttf',
