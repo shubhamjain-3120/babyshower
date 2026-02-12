@@ -3,7 +3,8 @@ import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
 import { isIAPEnabled, shouldBypassIAP, purchaseVideoDownload, getProductInfo } from "../utils/iapManager";
 import { isRazorpayEnabled, purchaseVideoDownload as razorpayPurchase } from "../utils/razorpayManager";
-import { getUserRegion } from "../utils/paymentPlatform";
+import { isPaypalEnabled, purchaseVideoDownload as paypalPurchase } from "../utils/paypalManager";
+import { getPaymentPlatform, getUserRegion } from "../utils/paymentPlatform";
 
 const logger = createDevLogger("ResultScreen");
 
@@ -77,13 +78,15 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
 
   // Determine payment requirements
   const userRegion = getUserRegion();
-  const isRazorpay = isRazorpayEnabled();
+  const paymentPlatform = getPaymentPlatform();
+  const isRazorpay = paymentPlatform === 'razorpay' && isRazorpayEnabled();
+  const isPaypal = paymentPlatform === 'paypal' && isPaypalEnabled();
   const requiresIAP = isIAPEnabled() && !shouldBypassIAP(venue) && !hasPurchased;
-  const requiresPayment = (requiresIAP || isRazorpay) && !hasPurchased;
+  const requiresPayment = (requiresIAP || isRazorpay || isPaypal) && !hasPurchased;
 
   // Debug logging
   logger.log("Payment Config", {
-    isRazorpay,
+    paymentPlatform,
     requiresPayment,
     requiresIAP,
     userRegion,
@@ -92,7 +95,7 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
 
   // Get display price for button
   const productInfo = getProductInfo();
-  const buttonPrice = isRazorpay
+  const buttonPrice = (isRazorpay || isPaypal)
     ? userRegion.displayPrice
     : (productInfo?.price || import.meta.env.VITE_IAP_PRICE_DISPLAY || '₹10');
 
@@ -140,11 +143,13 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
   // Purchase handler
   const handlePurchase = useCallback(async () => {
     setIsPurchasing(true);
-    logger.log("Initiating purchase flow", { isRazorpay });
+    logger.log("Initiating purchase flow", { paymentPlatform });
 
     let result;
     if (isRazorpay) {
       result = await razorpayPurchase(venue, userRegion);
+    } else if (isPaypal) {
+      result = await paypalPurchase(venue, userRegion);
     } else {
       result = await purchaseVideoDownload();
     }
@@ -164,7 +169,7 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
     }
 
     setIsPurchasing(false);
-  }, [handleDownloadInternal, isRazorpay, venue, userRegion]);
+  }, [handleDownloadInternal, isRazorpay, isPaypal, paymentPlatform, venue, userRegion]);
 
   // Main download handler with payment gate
   const handleDownload = useCallback(() => {

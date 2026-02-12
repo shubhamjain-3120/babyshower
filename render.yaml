@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: bunny-invites-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://bunny-invites-api.fly.dev
+      - key: VITE_PAYMENT_PROVIDER
+        value: paypal
+      - key: VITE_PAYPAL_ENABLED
+        value: "true"
+      - key: VITE_PAYPAL_CLIENT_ID
+        value: AfQ8bfF3il_fd4gIV2kZrFVT92L5y-Ks3ZNgbdyMay-9lCVuii6vcuUtFqG8m1JFBH4elviAHzKCaVAQ
+      - key: VITE_RAZORPAY_ENABLED
+        value: "false"
+    headers:
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
+      - path: /*
+        name: Cross-Origin-Embedder-Policy
+        value: credentialless
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -17,6 +17,9 @@
             VITE_RAZORPAY_ENABLED: import.meta.env.VITE_RAZORPAY_ENABLED,
             VITE_RAZORPAY_KEY_ID: import.meta.env.VITE_RAZORPAY_KEY_ID,
             VITE_IAP_ENABLED: import.meta.env.VITE_IAP_ENABLED,
+            VITE_PAYMENT_PROVIDER: import.meta.env.VITE_PAYMENT_PROVIDER,
+            VITE_PAYPAL_ENABLED: import.meta.env.VITE_PAYPAL_ENABLED,
+            VITE_PAYPAL_CLIENT_ID: import.meta.env.VITE_PAYPAL_CLIENT_ID,
 
             // Platform detection
             isNativePlatform: window.Capacitor?.isNativePlatform?.() || false,
@@ -42,8 +45,18 @@
         };
 
         // Test payment platform logic
+        const provider = (config.VITE_PAYMENT_PROVIDER || '').trim().toLowerCase();
+        const normalizedProvider = provider === 'rzp' ? 'razorpay' : provider;
         const isRazorpayEnabled = !config.isNativePlatform && config.VITE_RAZORPAY_ENABLED === 'true';
-        config.paymentPlatform = isRazorpayEnabled ? 'razorpay' : 'none';
+        const isPaypalEnabled = !config.isNativePlatform && config.VITE_PAYPAL_ENABLED === 'true' && Boolean(config.VITE_PAYPAL_CLIENT_ID);
+
+        if (normalizedProvider === 'razorpay') {
+            config.paymentPlatform = isRazorpayEnabled ? 'razorpay' : 'none';
+        } else if (normalizedProvider === 'paypal') {
+            config.paymentPlatform = isPaypalEnabled ? 'paypal' : 'none';
+        } else {
+            config.paymentPlatform = isRazorpayEnabled ? 'razorpay' : (isPaypalEnabled ? 'paypal' : 'none');
+        }
 
         output.textContent = JSON.stringify(config, null, 2);
     </script>
