@@ -2,7 +2,7 @@ export const BABY_ILLUSTRATION_PROMPT = `Transform the uploaded photo into a hig
 
 Frame only the upper bodies (waist-up).
 
-All three subjects (mother, father, and baby) must appear happy — bright, joyful expressions.
+All three subjects (mother, father, and new born baby) must appear happy — bright, joyful expressions.
 
 Parents:  warm smiles, soft cheek blush, visible happiness in the eyes.
 

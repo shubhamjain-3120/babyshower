@@ -29,7 +29,7 @@ export default function SampleVideoScreen({ onProceed }) {
         {/* Hero headline */}
         <div className="hero-container">
           <div className="sample-video-value-hindi">
-            <label>upload one photo. get a whatsapp-ready video invite in minutes.</label>
+            <label>upload one photo. get a ready to share video invite in minutes.</label>
           </div>
         </div>
 

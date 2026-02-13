@@ -530,11 +530,11 @@ const LAYOUT_V4 = {
 
   venue: {
     yPercent: 0.915,
-    fontRatio: 0.9,
+    fontSize: 40,
     letterSpacing: 0.02,
-    fontFamily: "Roxborough, 'Roxborough CF', Georgia, serif",
-    fontWeight: "500",
-    color: "#8B7355",
+    fontFamily: "Opensauce, 'Opensauce.ttf'",
+    fontWeight: "400",
+    color: "#292828",
   },
 
   baseFontSize: 54,
@@ -875,9 +875,8 @@ function drawVenueText(ctx, venue, opacity = 1) {
   
   const layout = LAYOUT_V4.venue;
   const y = CANVAS_HEIGHT * layout.yPercent;
-  const baseFontSize = LAYOUT_V4.baseFontSize * layout.fontRatio;
-
-  const displayText = `Venue: ${venue}`;
+  const baseFontSize = layout.fontSize ?? (LAYOUT_V4.baseFontSize * layout.fontRatio);
+  const displayText = `VENUE: ${venue}`.toUpperCase();
   
   // Scale font size proportionally if text exceeds ideal length (20 chars)
   const IDEAL_VENUE_LENGTH = 20;
