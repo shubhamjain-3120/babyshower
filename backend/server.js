@@ -11,7 +11,6 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
-import crypto from "crypto";
 import { removeBackground } from "@imgly/background-removal-node";
 import { VIDEO_CONFIG } from "./videoConfig.js";
 
@@ -25,9 +24,6 @@ const logger = createDevLogger("Server");
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
-const RAZORPAY_SECRET = process.env.RAZORPAY_SECRET || process.env.RAZORPAY_KEY_SECRET || "";
-const RAZORPAY_ENABLED = process.env.RAZORPAY_ENABLED === "true";
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || "";
 const PAYPAL_SECRET = process.env.PAYPAL_SECRET || "";
 const PAYPAL_ENABLED = process.env.PAYPAL_ENABLED === "true";
@@ -48,14 +44,6 @@ const DEV_PRICING = {
 function isDevModeVenue(venue) {
   if (!venue) return false;
   return venue.trim().toLowerCase() === DEV_MODE_VENUE.toLowerCase();
-}
-
-function toMinorUnits(amount, currency) {
-  const major = Number(amount);
-  if (!Number.isFinite(major)) return null;
-  const zeroDecimalCurrencies = new Set(["JPY", "KRW", "VND"]);
-  const multiplier = zeroDecimalCurrencies.has(currency) ? 1 : 100;
-  return Math.round(major * multiplier);
 }
 
 function formatPaypalAmount(amount, currency) {
@@ -108,12 +96,9 @@ function resolveOrderAmount({ venue, currency, amount }) {
     majorAmount = DEV_PRICING[normalizedCurrency] ?? Math.min(majorAmount, 0.01);
   }
 
-  const minorAmount = toMinorUnits(majorAmount, normalizedCurrency);
-
   return {
     currency: normalizedCurrency,
     majorAmount,
-    minorAmount,
   };
 }
 
@@ -244,168 +229,6 @@ app.use('/fonts', express.static(path.join(__dirname, '../frontend/public/fonts'
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", devMode: isDevMode() });
-});
-
-// Razorpay credential health check (no order creation)
-app.get("/api/payment/razorpay-health", async (req, res) => {
-  const requestId = Date.now().toString(36);
-
-  if (!RAZORPAY_ENABLED) {
-    return res.status(503).json({
-      success: false,
-      enabled: false,
-      error: "Razorpay is disabled",
-    });
-  }
-
-  if (!RAZORPAY_KEY_ID || !RAZORPAY_SECRET) {
-    return res.status(500).json({
-      success: false,
-      enabled: true,
-      error: "Payment configuration missing",
-    });
-  }
-
-  try {
-    const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_SECRET}`).toString("base64");
-    const healthRes = await fetch("https://api.razorpay.com/v1/orders?count=1", {
-      method: "GET",
-      headers: {
-        Authorization: `Basic ${auth}`,
-      },
-    });
-
-    if (!healthRes.ok) {
-      const errorText = await healthRes.text();
-      logger.error(`[${requestId}] Razorpay health check failed`, {
-        status: healthRes.status,
-        error: errorText,
-      });
-      return res.status(502).json({
-        success: false,
-        enabled: true,
-        error: "Razorpay credentials invalid",
-        ...(isDevMode() ? { details: errorText, status: healthRes.status } : {}),
-      });
-    }
-
-    return res.json({
-      success: true,
-      enabled: true,
-    });
-  } catch (error) {
-    logger.error(`[${requestId}] Razorpay health check error`, error);
-    return res.status(500).json({
-      success: false,
-      enabled: true,
-      error: "Razorpay health check failed",
-    });
-  }
-});
-
-// Simple Razorpay test page served from backend (no COOP/COEP headers)
-app.get("/test-payment", (req, res) => {
-  const keyId = RAZORPAY_KEY_ID || "";
-  const html = `<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Razorpay Backend Test</title>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <style>
-      body { font-family: system-ui, sans-serif; padding: 24px; }
-      label { display: block; margin: 12px 0 4px; }
-      input, select, button { font-size: 16px; padding: 8px; }
-      #output { margin-top: 16px; white-space: pre-wrap; }
-      .muted { color: #666; font-size: 12px; }
-    </style>
-  </head>
-  <body>
-    <h1>Razorpay Backend Test</h1>
-    <div class="muted">Key present: ${Boolean(keyId)}</div>
-
-    <label>Currency</label>
-    <select id="currency">
-      <option value="INR">INR</option>
-      <option value="USD">USD</option>
-    </select>
-
-    <label>Amount (major units)</label>
-    <input id="amount" type="number" step="0.01" value="49" />
-
-    <label>Venue</label>
-    <input id="venue" type="text" value="Test Venue" />
-
-    <div style="margin-top: 16px;">
-      <button id="pay-btn">Test Payment</button>
-    </div>
-
-    <div id="output">Ready.</div>
-
-    <script>
-      const keyId = ${JSON.stringify(keyId)};
-      const output = document.getElementById('output');
-      const payBtn = document.getElementById('pay-btn');
-
-      async function testPayment() {
-        output.textContent = 'Creating order...';
-        if (!keyId) {
-          output.textContent = 'Error: RAZORPAY_KEY_ID missing on backend';
-          return;
-        }
-        if (!window.Razorpay) {
-          output.textContent = 'Error: Razorpay SDK not loaded';
-          return;
-        }
-
-        const currency = document.getElementById('currency').value;
-        const amount = Number(document.getElementById('amount').value || 0);
-        const venue = document.getElementById('venue').value;
-
-        const res = await fetch('/api/payment/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currency, amount, venue })
-        });
-        const data = await res.json();
-        output.textContent = 'Order response: ' + JSON.stringify(data, null, 2);
-
-        if (!data.success) return;
-
-        const options = {
-          key: keyId,
-          order_id: data.orderId,
-          amount: data.amount,
-          currency: data.currency,
-          name: 'Test Payment',
-          description: 'Backend-served Razorpay test',
-          handler: function(response) {
-            output.textContent = 'Payment successful!\\n' + JSON.stringify(response, null, 2);
-          },
-          modal: {
-            ondismiss: function() {
-              output.textContent = 'Payment cancelled';
-            }
-          }
-        };
-
-        try {
-          const rzp = new window.Razorpay(options);
-          rzp.open();
-        } catch (err) {
-          output.textContent = 'Razorpay open failed: ' + (err && err.message ? err.message : err);
-          console.error(err);
-        }
-      }
-
-      payBtn.addEventListener('click', testPayment);
-    </script>
-  </body>
-</html>`;
-
-  res.set("Content-Type", "text/html; charset=utf-8");
-  res.send(html);
 });
 
 // Simple PayPal test page served from backend
@@ -547,169 +370,6 @@ app.get("/test-paypal", (req, res) => {
 
   res.set("Content-Type", "text/html; charset=utf-8");
   res.send(html);
-});
-
-// Razorpay payment: create order
-app.post("/api/payment/create-order", async (req, res) => {
-  const requestId = Date.now().toString(36);
-
-  try {
-    if (!RAZORPAY_ENABLED) {
-      return res.status(503).json({
-        success: false,
-        error: "Razorpay is disabled",
-      });
-    }
-
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_SECRET) {
-      logger.error(`[${requestId}] Razorpay credentials missing`);
-      return res.status(500).json({
-        success: false,
-        error: "Payment configuration missing",
-      });
-    }
-
-    const { venue, currency, amount } = req.body || {};
-    const resolved = resolveOrderAmount({ venue, currency, amount });
-
-    if (!resolved?.minorAmount || resolved.minorAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid amount",
-      });
-    }
-
-    if (!["INR", "USD"].includes(resolved.currency)) {
-      return res.status(400).json({
-        success: false,
-        error: "Unsupported currency",
-      });
-    }
-
-    const receipt = `receipt_${requestId}_${Math.random().toString(36).slice(2, 8)}`;
-    const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_SECRET}`).toString("base64");
-
-    logger.log(`[${requestId}] Creating Razorpay order`, {
-      currency: resolved.currency,
-      amount: resolved.minorAmount,
-      venue,
-      devMode: isDevModeVenue(venue) || isDevMode(),
-    });
-
-    const orderRes = await fetch("https://api.razorpay.com/v1/orders", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify({
-        amount: resolved.minorAmount,
-        currency: resolved.currency,
-        receipt,
-        payment_capture: 1,
-        notes: {
-          venue: venue || "",
-        },
-      }),
-    });
-
-    if (!orderRes.ok) {
-      const errorText = await orderRes.text();
-      logger.error(`[${requestId}] Razorpay order failed`, {
-        status: orderRes.status,
-        error: errorText,
-      });
-      return res.status(502).json({
-        success: false,
-        error: "Failed to create payment order",
-        ...(isDevMode() ? { details: errorText, status: orderRes.status } : {}),
-      });
-    }
-
-    const orderData = await orderRes.json();
-    logger.log(`[${requestId}] Razorpay order created`, {
-      orderId: orderData?.id,
-      amount: orderData?.amount,
-      currency: orderData?.currency,
-    });
-
-    return res.json({
-      success: true,
-      orderId: orderData.id,
-      amount: orderData.amount,
-      currency: orderData.currency,
-    });
-  } catch (error) {
-    logger.error(`[${requestId}] Create order failed`, error);
-    return res.status(500).json({
-      success: false,
-      error: "Payment order creation failed",
-    });
-  }
-});
-
-// Razorpay payment: verify signature
-app.post("/api/payment/verify", async (req, res) => {
-  const requestId = Date.now().toString(36);
-
-  try {
-    if (!RAZORPAY_ENABLED) {
-      return res.status(503).json({
-        success: false,
-        error: "Razorpay is disabled",
-      });
-    }
-
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_SECRET) {
-      logger.error(`[${requestId}] Razorpay credentials missing`);
-      return res.status(500).json({
-        success: false,
-        error: "Payment configuration missing",
-      });
-    }
-
-    const { orderId, paymentId, signature } = req.body || {};
-
-    if (!orderId || !paymentId || !signature) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing orderId, paymentId, or signature",
-      });
-    }
-
-    const expectedSignature = crypto
-      .createHmac("sha256", RAZORPAY_SECRET)
-      .update(`${orderId}|${paymentId}`)
-      .digest("hex");
-
-    const isValid =
-      typeof signature === "string" &&
-      signature.length === expectedSignature.length &&
-      crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedSignature)
-      );
-
-    logger.log(`[${requestId}] Razorpay verification`, {
-      orderId,
-      paymentId,
-      verified: isValid,
-    });
-
-    return res.json({
-      success: true,
-      verified: isValid,
-      verificationToken: isValid
-        ? Buffer.from(`${paymentId}:${Date.now()}`).toString("base64")
-        : null,
-    });
-  } catch (error) {
-    logger.error(`[${requestId}] Payment verification failed`, error);
-    return res.status(500).json({
-      success: false,
-      error: "Payment verification failed",
-    });
-  }
 });
 
 // PayPal payment: create order

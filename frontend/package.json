@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/validate-env.js && vite build",
     "build:analyze": "vite build && npx vite-bundle-visualizer",
-    "build:apk": "VITE_API_URL=https://wedding-invite-fly.fly.dev VITE_MONETIZATION_ENABLED=true npm run build && npx cap sync android",
+    "build:apk": "VITE_API_URL=https://wedding-invite-fly.fly.dev npm run build && npx cap sync android",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -16,7 +16,6 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@imgly/background-removal": "^1.7.0",
-    "cordova-plugin-purchase": "^13.13.0",
     "mixpanel-browser": "^2.74.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

@@ -8,7 +8,6 @@ import { removeImageBackground, dataURLToBlob } from "./utils/backgroundRemoval"
 import { createDevLogger } from "./utils/devLogger";
 import { incrementGenerationCount } from "./utils/rateLimit";
 import { getImageProcessingService, resetImageProcessingService, STATES } from "./utils/imageProcessingService";
-import { initializeIAP, isIAPEnabled } from "./utils/iapManager";
 import { trackClick } from "./utils/analytics";
 
 // Lazy load components that aren't immediately needed
@@ -219,17 +218,6 @@ export default function App() {
       setIsMusicPlaying(false);
     }
   }, [screen]);
-
-  // Initialize IAP on app startup (Android only)
-  useEffect(() => {
-    if (isIAPEnabled()) {
-      logger.log('Initializing Google Play IAP...');
-      initializeIAP().catch(err => {
-        logger.error('IAP init failed (non-blocking):', err);
-        // Don't crash app - IAP is optional feature
-      });
-    }
-  }, []);
 
   // Navigation handler: Sample video → Photo upload
   const handleSampleVideoComplete = useCallback(() => {

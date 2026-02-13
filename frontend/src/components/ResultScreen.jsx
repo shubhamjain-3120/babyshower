@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
-import { isIAPEnabled, shouldBypassIAP, purchaseVideoDownload, getProductInfo } from "../utils/iapManager";
-import { isRazorpayEnabled, purchaseVideoDownload as razorpayPurchase } from "../utils/razorpayManager";
 import { isPaypalEnabled, purchaseVideoDownload as paypalPurchase } from "../utils/paypalManager";
 import { getPaymentPlatform, getUserRegion } from "../utils/paymentPlatform";
 
@@ -79,25 +77,19 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
   // Determine payment requirements
   const userRegion = getUserRegion();
   const paymentPlatform = getPaymentPlatform();
-  const isRazorpay = paymentPlatform === 'razorpay' && isRazorpayEnabled();
   const isPaypal = paymentPlatform === 'paypal' && isPaypalEnabled();
-  const requiresIAP = isIAPEnabled() && !shouldBypassIAP(venue) && !hasPurchased;
-  const requiresPayment = (requiresIAP || isRazorpay || isPaypal) && !hasPurchased;
+  const requiresPayment = isPaypal && !hasPurchased;
 
   // Debug logging
   logger.log("Payment Config", {
     paymentPlatform,
     requiresPayment,
-    requiresIAP,
     userRegion,
     venue
   });
 
   // Get display price for button
-  const productInfo = getProductInfo();
-  const buttonPrice = (isRazorpay || isPaypal)
-    ? userRegion.displayPrice
-    : (productInfo?.price || import.meta.env.VITE_IAP_PRICE_DISPLAY || '₹10');
+  const buttonPrice = userRegion.displayPrice;
 
   // Internal download logic (extracted from original handleDownload)
   const handleDownloadInternal = useCallback(() => {
@@ -146,12 +138,10 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
     logger.log("Initiating purchase flow", { paymentPlatform });
 
     let result;
-    if (isRazorpay) {
-      result = await razorpayPurchase(venue, userRegion);
-    } else if (isPaypal) {
+    if (isPaypal) {
       result = await paypalPurchase(venue, userRegion);
     } else {
-      result = await purchaseVideoDownload();
+      result = { success: true };
     }
 
     if (result.success) {
@@ -169,7 +159,7 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
     }
 
     setIsPurchasing(false);
-  }, [handleDownloadInternal, isRazorpay, isPaypal, paymentPlatform, venue, userRegion]);
+  }, [handleDownloadInternal, isPaypal, paymentPlatform, venue, userRegion]);
 
   // Main download handler with payment gate
   const handleDownload = useCallback(() => {
@@ -275,17 +265,7 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
           {isPurchasing ? (
             <>⏳ processing...</>
           ) : requiresPayment ? (
-            isRazorpay ? (
-              <>
-                💳 buy now to download{' '}
-                <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>
-                  {userRegion.isIndia ? '₹1000' : '$11.99'}
-                </span>
-                {' '}{buttonPrice} only
-              </>
-            ) : (
-              <>💳 buy & download ({buttonPrice})</>
-            )
+            <>💳 buy & download ({buttonPrice})</>
           ) : (
             <>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

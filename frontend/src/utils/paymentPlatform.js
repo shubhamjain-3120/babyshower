@@ -1,14 +1,4 @@
-import { isIAPEnabled } from './iapManager';
-import { isRazorpayEnabled } from './razorpayManager';
 import { isPaypalEnabled } from './paypalManager';
-
-const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || '').trim().toLowerCase();
-
-function normalizeProvider(provider) {
-  if (!provider) return '';
-  if (provider === 'rzp') return 'razorpay';
-  return provider;
-}
 
 // Detect user's region and currency
 export function getUserRegion() {
@@ -40,13 +30,7 @@ export function getUserRegion() {
 }
 
 export function getPaymentPlatform() {
-  if (isIAPEnabled()) return 'iap';
-  const provider = normalizeProvider(PAYMENT_PROVIDER);
-  if (provider === 'razorpay') return isRazorpayEnabled() ? 'razorpay' : 'none';
-  if (provider === 'paypal') return isPaypalEnabled() ? 'paypal' : 'none';
-  if (isRazorpayEnabled()) return 'razorpay';
-  if (isPaypalEnabled()) return 'paypal';
-  return 'none';
+  return isPaypalEnabled() ? 'paypal' : 'none';
 }
 
 export function isPaymentEnabled() {

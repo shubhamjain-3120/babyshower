@@ -1,4 +1,4 @@
-app = "wedding-invite-fly"
+app = "bunny-invites-api"
 primary_region = "iad"
 
 [http_service]
@@ -8,6 +8,10 @@ force_https = true
 internal_port = 8080
 min_machines_running = 1
 processes = ["app"]
+
+[env]
+NODE_ENV = "production"
+CORS_ORIGIN = "https://bunny-invites.onrender.com"
 
 [[vm]]
 cpus = 1
