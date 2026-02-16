@@ -5,7 +5,6 @@ const logger = createDevLogger('PayPalManager');
 
 const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || '';
 const PAYPAL_ENABLED = import.meta.env.VITE_PAYPAL_ENABLED === 'true';
-const PAYPAL_ENV = (import.meta.env.VITE_PAYPAL_ENV || 'sandbox').toLowerCase();
 const PAYPAL_INTENT = (import.meta.env.VITE_PAYPAL_INTENT || 'capture').toLowerCase();
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -32,9 +31,7 @@ function buildSdkUrl(currency) {
     intent: PAYPAL_INTENT === 'authorize' ? 'authorize' : 'capture',
   });
 
-  if (PAYPAL_ENV === 'sandbox') {
-    params.set('components', 'buttons');
-  }
+  params.set('components', 'card-fields');
 
   return `https://www.paypal.com/sdk/js?${params.toString()}`;
 }
@@ -142,7 +139,38 @@ export async function purchaseVideoDownload(venue, userRegion) {
             margin-bottom: 12px;
             display: none;
           "></div>
-          <div id="paypal-buttons"></div>
+          <div style="display: grid; gap: 12px;">
+            <div>
+              <label style="display: block; font-size: 12px; color: #666; margin-bottom: 6px;">
+                Card number
+              </label>
+              <div id="paypal-card-number" style="border: 1px solid #ddd; border-radius: 6px; padding: 12px;"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display: block; font-size: 12px; color: #666; margin-bottom: 6px;">
+                  Expiry
+                </label>
+                <div id="paypal-card-expiry" style="border: 1px solid #ddd; border-radius: 6px; padding: 12px;"></div>
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; color: #666; margin-bottom: 6px;">
+                  CVV
+                </label>
+                <div id="paypal-card-cvv" style="border: 1px solid #ddd; border-radius: 6px; padding: 12px;"></div>
+              </div>
+            </div>
+            <button id="paypal-card-submit" style="
+              margin-top: 6px;
+              background: #621d35;
+              color: #fff;
+              border: none;
+              border-radius: 8px;
+              padding: 12px 16px;
+              font-size: 16px;
+              cursor: pointer;
+            ">Pay now</button>
+          </div>
         </div>
       </div>
     `;
@@ -171,7 +199,23 @@ export async function purchaseVideoDownload(venue, userRegion) {
 
     modal.querySelector('#paypal-close').addEventListener('click', closeModal);
 
-    const buttons = window.paypal.Buttons({
+    if (!window.paypal?.CardFields) {
+      logger.error('PayPal CardFields not available');
+      errorDiv.textContent = 'PayPal card payments are not available right now.';
+      errorDiv.style.display = 'block';
+      return;
+    }
+
+    const cardFields = window.paypal.CardFields({
+      style: {
+        input: {
+          'font-size': '16px',
+          'font-family': 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          color: '#333',
+        },
+        '.invalid': { color: '#dc3545' },
+        ':focus': { color: '#111' },
+      },
       createOrder: async () => {
         try {
           const orderRes = await fetch(`${API_URL}/api/payment/paypal/create-order`, {
@@ -249,13 +293,53 @@ export async function purchaseVideoDownload(venue, userRegion) {
       },
     });
 
-    if (!buttons || !buttons.render) {
-      logger.error('PayPal Buttons not available');
-      errorDiv.textContent = 'PayPal is not available right now.';
+    if (!cardFields) {
+      logger.error('PayPal CardFields failed to initialize');
+      errorDiv.textContent = 'PayPal card payments are not available right now.';
       errorDiv.style.display = 'block';
       return;
     }
 
-    buttons.render('#paypal-buttons');
+    if (!cardFields.isEligible()) {
+      logger.warn('PayPal CardFields not eligible');
+      errorDiv.textContent = 'Card payments are not available for this transaction.';
+      errorDiv.style.display = 'block';
+      const submitButton = modal.querySelector('#paypal-card-submit');
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.style.opacity = '0.6';
+        submitButton.style.cursor = 'not-allowed';
+      }
+      return;
+    }
+
+    cardFields.NumberField().render('#paypal-card-number');
+    cardFields.ExpiryField().render('#paypal-card-expiry');
+    cardFields.CVVField().render('#paypal-card-cvv');
+
+    const submitButton = modal.querySelector('#paypal-card-submit');
+    if (submitButton) {
+      submitButton.addEventListener('click', async () => {
+        errorDiv.style.display = 'none';
+        try {
+          const state = cardFields.getState();
+          if (!state?.isFormValid) {
+            errorDiv.textContent = 'Please check your card details and try again.';
+            errorDiv.style.display = 'block';
+            return;
+          }
+          submitButton.disabled = true;
+          submitButton.textContent = 'Processing...';
+          await cardFields.submit();
+        } catch (err) {
+          logger.error('PayPal CardFields submit failed', err);
+          errorDiv.textContent = err?.message || 'Payment failed. Please try again.';
+          errorDiv.style.display = 'block';
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Pay now';
+        }
+      });
+    }
   });
 }

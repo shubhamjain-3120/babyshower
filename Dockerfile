@@ -1,7 +1,7 @@
 FROM node:18-slim
 
-# Install FFmpeg and librsvg2-bin (required for server-side video composition)
-RUN apt-get update && apt-get install -y ffmpeg librsvg2-bin && rm -rf /var/lib/apt/lists/*
+# Install FFmpeg, librsvg2-bin, and libgomp1 (required for server-side video + onnx runtime)
+RUN apt-get update && apt-get install -y ffmpeg librsvg2-bin libgomp1 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

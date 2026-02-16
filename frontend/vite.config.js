@@ -20,6 +20,10 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         includeAssets: ["fonts/**/*", "assets/**/*"],
         workbox: {
+          // Keep caches aligned with the latest build to avoid stale chunk errors
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
           // Only precache essential small files - skip large assets
           globPatterns: ['**/*.{js,css,html,ico,woff,woff2}'],
           // Exclude large files from precaching
