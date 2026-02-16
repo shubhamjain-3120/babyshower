@@ -90,86 +90,53 @@ export async function purchaseVideoDownload(venue, userRegion) {
     const modal = document.createElement('div');
     modal.id = 'paypal-modal';
     modal.innerHTML = `
-      <div style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        padding: 20px;
-      ">
-        <div style="
-          background: white;
-          border-radius: 12px;
-          padding: 28px;
-          max-width: 480px;
-          width: 100%;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-        ">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0; font-size: 22px; color: #621d35;">Complete Payment</h2>
-            <button id="paypal-close" style="
-              background: none;
-              border: none;
-              font-size: 28px;
-              cursor: pointer;
-              color: #666;
-              padding: 0;
-              width: 32px;
-              height: 32px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            ">&times;</button>
+      <div class="paypal-modal-overlay">
+        <div class="paypal-modal">
+          <div class="paypal-modal-header">
+            <div class="paypal-modal-title-wrap">
+              <div class="paypal-modal-title">Secure card payment</div>
+              <div class="paypal-modal-subtitle">Powered by PayPal</div>
+            </div>
+            <button id="paypal-close" class="paypal-modal-close" aria-label="Close">&times;</button>
           </div>
-          <div style="margin-bottom: 20px; padding: 14px; background: #f8f9fa; border-radius: 8px;">
-            <div style="font-size: 14px; color: #666; margin-bottom: 4px;">Amount to pay</div>
-            <div style="font-size: 26px; font-weight: 600; color: #621d35;">
+          <div class="paypal-modal-amount">
+            <div class="paypal-modal-amount-label">Amount</div>
+            <div class="paypal-modal-amount-value">
               ${(userRegion?.displayPrice || '$4.99')} ${currency}
             </div>
           </div>
-          <div id="paypal-error-message" style="
-            color: #dc3545;
-            font-size: 14px;
-            margin-bottom: 12px;
-            display: none;
-          "></div>
-          <div style="display: grid; gap: 12px;">
-            <div>
-              <label style="display: block; font-size: 12px; color: #666; margin-bottom: 6px;">
-                Card number
-              </label>
-              <div id="paypal-card-number" style="border: 1px solid #ddd; border-radius: 6px; padding: 12px;"></div>
+          <div class="paypal-modal-logos">
+            <span class="paypal-modal-logos-label">Supported cards</span>
+            <div class="paypal-card-logos">
+              <img class="paypal-card-logo" src="/assets/cards/visa.svg" alt="Visa" />
+              <img class="paypal-card-logo" src="/assets/cards/mastercard.svg" alt="Mastercard" />
+              <img class="paypal-card-logo" src="/assets/cards/amex.svg" alt="American Express" />
+              <img class="paypal-card-logo" src="/assets/cards/discover.svg" alt="Discover" />
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div>
-                <label style="display: block; font-size: 12px; color: #666; margin-bottom: 6px;">
-                  Expiry
-                </label>
-                <div id="paypal-card-expiry" style="border: 1px solid #ddd; border-radius: 6px; padding: 12px;"></div>
+          </div>
+          <div id="paypal-error-message" class="paypal-error-message"></div>
+          <div class="paypal-card-fields">
+            <div class="paypal-card-field">
+              <label class="paypal-card-label">Card number</label>
+              <div id="paypal-card-number" class="paypal-card-input"></div>
+            </div>
+            <div class="paypal-card-grid">
+              <div class="paypal-card-field">
+                <label class="paypal-card-label">Expiry</label>
+                <div id="paypal-card-expiry" class="paypal-card-input"></div>
               </div>
-              <div>
-                <label style="display: block; font-size: 12px; color: #666; margin-bottom: 6px;">
-                  CVV
-                </label>
-                <div id="paypal-card-cvv" style="border: 1px solid #ddd; border-radius: 6px; padding: 12px;"></div>
+              <div class="paypal-card-field">
+                <label class="paypal-card-label">CVV</label>
+                <div id="paypal-card-cvv" class="paypal-card-input"></div>
               </div>
             </div>
-            <button id="paypal-card-submit" style="
-              margin-top: 6px;
-              background: #621d35;
-              color: #fff;
-              border: none;
-              border-radius: 8px;
-              padding: 12px 16px;
-              font-size: 16px;
-              cursor: pointer;
-            ">Pay now</button>
+            <button id="paypal-card-submit" class="paypal-card-submit">Pay now</button>
+            <div class="paypal-secure-note">
+              <svg class="paypal-secure-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 1.5c-3.1 0-5.5 2.4-5.5 5.5v3H5a1 1 0 0 0-1 1v9c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-9a1 1 0 0 0-1-1h-1.5v-3c0-3.1-2.4-5.5-5.5-5.5Zm3.5 8.5h-7v-3a3.5 3.5 0 1 1 7 0v3Z" fill="currentColor"/>
+              </svg>
+              <span>Secured by PayPal. We do not store card details.</span>
+            </div>
           </div>
         </div>
       </div>

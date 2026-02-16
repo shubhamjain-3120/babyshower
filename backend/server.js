@@ -33,11 +33,9 @@ const PAYPAL_BASE_URL =
   (PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com");
 const DEV_MODE_VENUE = "Hotel Jain Ji Shubham";
 const DEFAULT_PRICING = {
-  INR: 49,
   USD: 4.99,
 };
 const DEV_PRICING = {
-  INR: 1,
   USD: 1,
 };
 
@@ -84,7 +82,7 @@ async function getPaypalAccessToken(requestId) {
 }
 
 function resolveOrderAmount({ venue, currency, amount }) {
-  const normalizedCurrency = (currency || "INR").toUpperCase();
+  const normalizedCurrency = (currency || "USD").toUpperCase();
   const isDevOrder = isDevModeVenue(venue) || isDevMode();
 
   let majorAmount = Number(amount);
@@ -385,6 +383,12 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
     }
 
     const { venue, currency, amount } = req.body || {};
+    if (currency && String(currency).toUpperCase() !== "USD") {
+      return res.status(400).json({
+        success: false,
+        error: "Only USD payments are supported",
+      });
+    }
     const resolved = resolveOrderAmount({ venue, currency, amount });
 
     if (!resolved?.majorAmount || resolved.majorAmount <= 0) {
@@ -394,10 +398,10 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
       });
     }
 
-    if (!["INR", "USD"].includes(resolved.currency)) {
+    if (resolved.currency !== "USD") {
       return res.status(400).json({
         success: false,
-        error: "Unsupported currency",
+        error: "Only USD payments are supported",
       });
     }
 
