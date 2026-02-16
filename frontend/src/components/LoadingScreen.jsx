@@ -78,11 +78,6 @@ export default function LoadingScreen({ completed = false, onCancel }) {
   return (
     <div className="loading-screen">
       <div className="loading-content">
-        {/* Loading text */}
-        <h2 className="loading-text">
-          curating your invite!
-        </h2>
-
         {/* Looping loading video - no audio */}
         <div className="mascot-container mascot-container-large">
           <video

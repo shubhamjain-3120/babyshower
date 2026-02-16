@@ -2118,6 +2118,76 @@ html, body {
   border-radius: 10px;
 }
 
+.paypal-hosted-status {
+  margin: 12px 0 8px;
+}
+
+.paypal-hosted-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2a0f1b;
+}
+
+.paypal-hosted-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.paypal-hosted-spinner {
+  width: 36px;
+  height: 36px;
+  margin: 14px auto 10px;
+  border-radius: 50%;
+  border: 3px solid rgba(98, 29, 53, 0.2);
+  border-top-color: #621d35;
+  animation: paypal-spin 0.9s linear infinite;
+}
+
+.paypal-hosted-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.paypal-hosted-open,
+.paypal-hosted-retry {
+  border: 1px solid rgba(16, 24, 40, 0.12);
+  background: #ffffff;
+  color: #3b3b3b;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.paypal-hosted-open:hover,
+.paypal-hosted-retry:hover {
+  border-color: rgba(98, 29, 53, 0.35);
+  color: #621d35;
+}
+
+.paypal-hosted-open {
+  background: linear-gradient(135deg, #6b1f3a 0%, #4d1429 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 10px 20px rgba(98, 29, 53, 0.2);
+}
+
+.paypal-hosted-open:hover {
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(98, 29, 53, 0.28);
+}
+
+.paypal-hosted-open:disabled,
+.paypal-hosted-retry:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .paypal-card-fields {
   display: grid;
   gap: 12px;
@@ -2197,5 +2267,14 @@ html, body {
 
   .paypal-card-logos {
     justify-content: flex-start;
+  }
+}
+
+@keyframes paypal-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }

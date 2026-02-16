@@ -370,6 +370,74 @@ app.get("/test-paypal", (req, res) => {
   res.send(html);
 });
 
+// PayPal hosted checkout return page
+app.get("/payment-complete", (req, res) => {
+  const cancelled = String(req.query?.cancel || "").toLowerCase() === "true";
+  const hasToken = Boolean(req.query?.token);
+  const isSuccess = !cancelled && hasToken;
+  const title = cancelled
+    ? "Payment cancelled"
+    : isSuccess
+      ? "Payment completed"
+      : "Payment status unknown";
+  const message = cancelled
+    ? "You can close this tab and return to your invite to try again."
+    : isSuccess
+      ? "You can close this tab and return to your invite. We’ll finish the download there."
+      : "Please return to your invite tab. We’ll finish once PayPal confirms the payment.";
+
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f7f7fb;
+        color: #2a0f1b;
+        margin: 0;
+        padding: 40px 16px;
+      }
+      .card {
+        max-width: 520px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 16px 36px rgba(9, 16, 26, 0.12);
+        border: 1px solid rgba(16, 24, 40, 0.08);
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 22px;
+      }
+      p {
+        margin: 0;
+        color: #5f6368;
+        line-height: 1.5;
+      }
+      .note {
+        margin-top: 16px;
+        font-size: 12px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>${title}</h1>
+      <p>${message}</p>
+      <div class="note">You can safely close this tab.</div>
+    </div>
+  </body>
+</html>`;
+
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
+});
+
 // PayPal payment: create order
 app.post("/api/payment/paypal/create-order", async (req, res) => {
   const requestId = Date.now().toString(36);
@@ -382,7 +450,7 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
       });
     }
 
-    const { venue, currency, amount } = req.body || {};
+    const { venue, currency, amount, returnUrl, cancelUrl } = req.body || {};
     if (currency && String(currency).toUpperCase() !== "USD") {
       return res.status(400).json({
         success: false,
@@ -415,6 +483,15 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
       devMode: isDevModeVenue(venue) || isDevMode(),
     });
 
+    const applicationContext = {
+      brand_name: "bunny invites",
+      user_action: "PAY_NOW",
+      landing_page: "BILLING",
+      shipping_preference: "NO_SHIPPING",
+      ...(returnUrl ? { return_url: returnUrl } : {}),
+      ...(cancelUrl ? { cancel_url: cancelUrl } : {}),
+    };
+
     const orderRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders`, {
       method: "POST",
       headers: {
@@ -432,10 +509,7 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
             custom_id: venue ? venue.slice(0, 120) : undefined,
           },
         ],
-        application_context: {
-          brand_name: "bunny invites",
-          user_action: "PAY_NOW",
-        },
+        application_context: applicationContext,
       }),
     });
 
@@ -453,6 +527,11 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
     }
 
     const orderData = await orderRes.json();
+    const approveUrl =
+      orderData?.links?.find((link) => link.rel === "approve")?.href ||
+      orderData?.links?.find((link) => link.rel === "payer-action")?.href ||
+      null;
+
     logger.log(`[${requestId}] PayPal order created`, {
       orderId: orderData?.id,
       amount: paypalAmount,
@@ -462,6 +541,7 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
     return res.json({
       success: true,
       orderId: orderData.id,
+      approveUrl,
       amount: resolved.majorAmount,
       currency: resolved.currency,
     });
