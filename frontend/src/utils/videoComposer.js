@@ -491,8 +491,8 @@ const LAYOUT_V4 = {
   character: {
     heightPercent: 0.60,
     marginXPercent: 0.08,
-    topPercent: 0.22,
-    bottomPercent: 0.82,
+    topPercent: 0.18,
+    bottomPercent: 0.78,
     sizeMultiplier: 2.0,
   },
 

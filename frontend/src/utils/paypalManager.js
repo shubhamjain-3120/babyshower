@@ -65,6 +65,7 @@ export async function purchaseVideoDownload(venue, userRegion) {
           <div id="paypal-hosted-spinner" class="paypal-hosted-spinner" aria-hidden="true"></div>
           <div id="paypal-error-message" class="paypal-error-message"></div>
           <div class="paypal-hosted-actions">
+            <button id="paypal-hosted-open" class="paypal-hosted-open" style="display: none;">Open PayPal</button>
             <button id="paypal-hosted-retry" class="paypal-hosted-retry" style="display: none;">Try again</button>
           </div>
           <div class="paypal-secure-note">
@@ -91,6 +92,7 @@ export async function purchaseVideoDownload(venue, userRegion) {
     const statusTitle = modal.querySelector('#paypal-hosted-title');
     const statusSubtitle = modal.querySelector('#paypal-hosted-subtitle');
     const spinner = modal.querySelector('#paypal-hosted-spinner');
+    const openButton = modal.querySelector('#paypal-hosted-open');
     const retryButton = modal.querySelector('#paypal-hosted-retry');
 
     const finalize = (result) => {
@@ -151,7 +153,8 @@ export async function purchaseVideoDownload(venue, userRegion) {
       if (!popup) {
         showError(
           'Popup blocked. Please allow popups for this site, then click "Try again".',
-          false
+          true,
+          'open'
         );
       }
     };
@@ -243,7 +246,13 @@ export async function purchaseVideoDownload(venue, userRegion) {
           throw new Error('PayPal checkout link unavailable. Please try again.');
         }
 
-        setStatus('Complete payment in the new tab', 'We’ll unlock your download once approved.');
+        setStatus(
+          'Complete payment in the new tab',
+          'If the PayPal tab did not open, click "Open PayPal".'
+        );
+        if (openButton) {
+          openButton.style.display = 'inline-flex';
+        }
         openPaypal(false);
         startPolling();
       } catch (err) {
@@ -259,10 +268,20 @@ export async function purchaseVideoDownload(venue, userRegion) {
         const mode = retryButton.dataset.mode || 'poll';
         if (mode === 'create') {
           startCreateOrder();
+        } else if (mode === 'open') {
+          clearError();
+          openPaypal(false);
         } else {
           setStatus('Waiting for approval...', 'We are checking your payment status.');
           startPolling();
         }
+      });
+    }
+
+    if (openButton) {
+      openButton.addEventListener('click', () => {
+        clearError();
+        openPaypal(false);
       });
     }
 

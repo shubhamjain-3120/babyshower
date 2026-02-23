@@ -51,6 +51,9 @@ export async function generateBabyIllustrationWithGemini(photoBuffer, requestId,
           },
         },
       ],
+      config: {
+        responseModalities: ["TEXT", "IMAGE"],
+      },
     });
 
     const candidates = response?.candidates || [];
