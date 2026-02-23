@@ -9,6 +9,7 @@ import { createDevLogger } from "./utils/devLogger";
 import { incrementGenerationCount } from "./utils/rateLimit";
 import { getImageProcessingService, resetImageProcessingService, STATES } from "./utils/imageProcessingService";
 import { trackClick } from "./utils/analytics";
+import { saveInvite, loadInvite, clearInvite } from "./utils/inviteStorage";
 
 // Lazy load components that aren't immediately needed
 const ResultScreen = lazy(() => import("./components/ResultScreen"));
@@ -156,6 +157,7 @@ export default function App() {
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [processingStatus, setProcessingStatus] = useState({ state: 'idle' });
   const processingServiceRef = useRef(null);
+  const hasRestoredInviteRef = useRef(false);
 
   // Network status detection
   const isOnline = useNetworkStatus();
@@ -218,6 +220,26 @@ export default function App() {
       setIsMusicPlaying(false);
     }
   }, [screen]);
+
+  // Restore cached invite on first load (survives refresh)
+  useEffect(() => {
+    if (hasRestoredInviteRef.current) return;
+    hasRestoredInviteRef.current = true;
+
+    const restoreInvite = async () => {
+      const cached = await loadInvite();
+      if (cached?.blob) {
+        setFinalInvite(cached.blob);
+        setFormData({
+          parentsName: cached.metadata?.parentsName || "",
+          venue: cached.metadata?.venue || "",
+        });
+        setScreen(SCREENS.RESULT);
+      }
+    };
+
+    restoreInvite();
+  }, []);
 
   // Navigation handler: Sample video → Photo upload
   const handleSampleVideoComplete = useCallback(() => {
@@ -523,6 +545,10 @@ export default function App() {
       }
 
       setFinalInvite(videoBlob);
+      saveInvite(videoBlob, {
+        parentsName: generationFormData.parentsName,
+        venue: generationFormData.venue,
+      });
 
       // Increment rate limit counter (only for non-dev mode)
       if (!generationFormData.devMode) {
@@ -600,6 +626,7 @@ export default function App() {
     setUploadedPhoto(null);
     setProcessingStatus({ state: 'idle' });
     setError(null);
+    clearInvite();
   }, []);
 
   // Handle back button navigation

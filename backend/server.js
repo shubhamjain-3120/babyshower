@@ -32,11 +32,19 @@ const PAYPAL_BASE_URL =
   process.env.PAYPAL_BASE_URL ||
   (PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com");
 const DEV_MODE_VENUE = "Hotel Jain Ji Shubham";
+function parseEnvPrice(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+const DEFAULT_PRICE_USD = parseEnvPrice("PRICE_USD", 4.99);
+const DEV_PRICE_USD = parseEnvPrice("DEV_PRICE_USD", 1);
+
 const DEFAULT_PRICING = {
-  USD: 4.99,
+  USD: DEFAULT_PRICE_USD,
 };
 const DEV_PRICING = {
-  USD: 1,
+  USD: DEV_PRICE_USD,
 };
 
 function isDevModeVenue(venue) {
@@ -81,18 +89,13 @@ async function getPaypalAccessToken(requestId) {
   return tokenData.access_token;
 }
 
-function resolveOrderAmount({ venue, currency, amount }) {
+function resolveOrderAmount({ venue, currency }) {
   const normalizedCurrency = (currency || "USD").toUpperCase();
   const isDevOrder = isDevModeVenue(venue) || isDevMode();
 
-  let majorAmount = Number(amount);
-  if (!Number.isFinite(majorAmount) || majorAmount <= 0) {
-    majorAmount = isDevOrder
-      ? (DEV_PRICING[normalizedCurrency] ?? 0.01)
-      : (DEFAULT_PRICING[normalizedCurrency] ?? 4.99);
-  } else if (isDevOrder) {
-    majorAmount = DEV_PRICING[normalizedCurrency] ?? Math.min(majorAmount, 0.01);
-  }
+  const majorAmount = isDevOrder
+    ? (DEV_PRICING[normalizedCurrency] ?? DEFAULT_PRICING[normalizedCurrency] ?? 0.01)
+    : (DEFAULT_PRICING[normalizedCurrency] ?? 0.01);
 
   return {
     currency: normalizedCurrency,
@@ -229,6 +232,16 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", devMode: isDevMode() });
 });
 
+// Pricing config (derived from backend env only)
+app.get("/api/pricing", (req, res) => {
+  const venue = req.query?.venue ? String(req.query.venue) : "";
+  const resolved = resolveOrderAmount({ venue, currency: "USD" });
+  res.json({
+    currency: resolved.currency,
+    amount: resolved.majorAmount,
+  });
+});
+
 // Simple PayPal test page served from backend
 app.get("/test-paypal", (req, res) => {
   const clientId = PAYPAL_CLIENT_ID || "";
@@ -264,7 +277,7 @@ app.get("/test-paypal", (req, res) => {
     <button id="reload-sdk" style="margin-top: 8px;">Reload SDK</button>
 
     <label>Amount (major units)</label>
-    <input id="amount" type="number" step="0.01" value="4.99" />
+    <input id="amount" type="number" step="0.01" value="${DEFAULT_PRICE_USD}" />
 
     <label>Venue</label>
     <input id="venue" type="text" value="Test Venue" />
@@ -457,7 +470,7 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
         error: "Only USD payments are supported",
       });
     }
-    const resolved = resolveOrderAmount({ venue, currency, amount });
+    const resolved = resolveOrderAmount({ venue, currency });
 
     if (!resolved?.majorAmount || resolved.majorAmount <= 0) {
       return res.status(400).json({

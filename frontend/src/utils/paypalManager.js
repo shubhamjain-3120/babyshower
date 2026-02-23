@@ -23,6 +23,8 @@ function resolvePaypalCurrency(userRegion) {
 export async function purchaseVideoDownload(venue, userRegion) {
   const currency = resolvePaypalCurrency(userRegion);
   const amount = userRegion?.amount;
+  const fallbackAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+  const displayPrice = userRegion?.displayPrice || `$${fallbackAmount.toFixed(2)}`;
   const returnBaseUrl = (API_URL || window.location.origin).replace(/\/+$/, '');
   const returnUrl = `${returnBaseUrl}/payment-complete`;
   const cancelUrl = `${returnBaseUrl}/payment-complete?cancel=true`;
@@ -44,7 +46,7 @@ export async function purchaseVideoDownload(venue, userRegion) {
           <div class="paypal-modal-amount">
             <div class="paypal-modal-amount-label">Amount</div>
             <div class="paypal-modal-amount-value">
-              ${(userRegion?.displayPrice || '$4.99')} ${currency}
+              ${displayPrice} ${currency}
             </div>
           </div>
           <div class="paypal-modal-logos">
@@ -63,7 +65,6 @@ export async function purchaseVideoDownload(venue, userRegion) {
           <div id="paypal-hosted-spinner" class="paypal-hosted-spinner" aria-hidden="true"></div>
           <div id="paypal-error-message" class="paypal-error-message"></div>
           <div class="paypal-hosted-actions">
-            <button id="paypal-hosted-open" class="paypal-hosted-open" style="display: none;">Open PayPal</button>
             <button id="paypal-hosted-retry" class="paypal-hosted-retry" style="display: none;">Try again</button>
           </div>
           <div class="paypal-secure-note">
@@ -90,7 +91,6 @@ export async function purchaseVideoDownload(venue, userRegion) {
     const statusTitle = modal.querySelector('#paypal-hosted-title');
     const statusSubtitle = modal.querySelector('#paypal-hosted-subtitle');
     const spinner = modal.querySelector('#paypal-hosted-spinner');
-    const openButton = modal.querySelector('#paypal-hosted-open');
     const retryButton = modal.querySelector('#paypal-hosted-retry');
 
     const finalize = (result) => {
@@ -150,18 +150,9 @@ export async function purchaseVideoDownload(venue, userRegion) {
       const popup = window.open(approveUrl, '_blank', 'noopener,noreferrer');
       if (!popup) {
         showError(
-          'Popup blocked. Please allow popups or open PayPal in this tab (this may lose your invite).',
+          'Popup blocked. Please allow popups for this site, then click "Try again".',
           false
         );
-        if (openButton) {
-          openButton.textContent = 'Open PayPal in this tab';
-          openButton.dataset.sameTab = 'true';
-          openButton.style.display = 'inline-flex';
-        }
-      } else if (openButton) {
-        openButton.textContent = 'Open PayPal again';
-        openButton.dataset.sameTab = 'false';
-        openButton.style.display = 'inline-flex';
       }
     };
 
@@ -220,7 +211,6 @@ export async function purchaseVideoDownload(venue, userRegion) {
       clearError();
       setStatus('Creating secure checkout...', 'This usually takes a few seconds.');
       if (spinner) spinner.style.display = 'block';
-      if (openButton) openButton.style.display = 'none';
 
       try {
         const orderRes = await fetch(`${requestBaseUrl}/api/payment/paypal/create-order`, {
@@ -229,7 +219,6 @@ export async function purchaseVideoDownload(venue, userRegion) {
           body: JSON.stringify({
             venue,
             currency,
-            amount,
             returnUrl,
             cancelUrl,
           }),
@@ -273,23 +262,6 @@ export async function purchaseVideoDownload(venue, userRegion) {
         } else {
           setStatus('Waiting for approval...', 'We are checking your payment status.');
           startPolling();
-        }
-      });
-    }
-
-    if (openButton) {
-      openButton.addEventListener('click', () => {
-        if (!approveUrl) return;
-        const sameTab = openButton.dataset.sameTab === 'true';
-        if (sameTab) {
-          const proceed = window.confirm(
-            'Opening PayPal in this tab will navigate away and may lose your invite. Continue?'
-          );
-          if (proceed) {
-            openPaypal(true);
-          }
-        } else {
-          openPaypal(false);
         }
       });
     }

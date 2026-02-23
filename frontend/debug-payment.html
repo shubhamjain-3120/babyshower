@@ -34,17 +34,28 @@
             timezone.includes('Asia/Calcutta') ||
             locale.toLowerCase().includes('in');
 
-        config.detectedRegion = {
-            isIndia,
-            currency: isIndia ? 'INR' : 'USD',
-            amount: isIndia ? 49 : 4.99,
-            displayPrice: isIndia ? '₹49' : '$4.99'
-        };
+        async function loadPricing() {
+            try {
+                const res = await fetch('/api/pricing');
+                const data = await res.json();
+                const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: data.currency || 'USD' });
+                config.detectedRegion = {
+                    isIndia,
+                    currency: data.currency || 'USD',
+                    amount: Number(data.amount || 0),
+                    displayPrice: formatter.format(Number(data.amount || 0))
+                };
+            } catch (error) {
+                config.detectedRegion = { error: String(error) };
+            }
+        }
 
         // Test payment platform logic
         const isPaypalEnabled = !config.isNativePlatform && config.VITE_PAYPAL_ENABLED === 'true' && Boolean(config.VITE_PAYPAL_CLIENT_ID);
 
         config.paymentPlatform = isPaypalEnabled ? 'paypal' : 'none';
+
+        await loadPricing();
 
         output.textContent = JSON.stringify(config, null, 2);
     </script>
