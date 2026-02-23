@@ -1,5 +1,6 @@
 import { createDevLogger } from './devLogger';
 import { trackClick } from './analytics';
+import { setPendingPayment } from './paymentState';
 
 const logger = createDevLogger('PayPalManager');
 
@@ -25,7 +26,7 @@ export async function purchaseVideoDownload(venue, userRegion) {
   const amount = userRegion?.amount;
   const fallbackAmount = Number.isFinite(Number(amount)) ? Number(amount) : 0;
   const displayPrice = userRegion?.displayPrice || `$${fallbackAmount.toFixed(2)}`;
-  const returnBaseUrl = (API_URL || window.location.origin).replace(/\/+$/, '');
+  const returnBaseUrl = window.location.origin.replace(/\/+$/, '');
   const returnUrl = `${returnBaseUrl}/payment-complete`;
   const cancelUrl = `${returnBaseUrl}/payment-complete?cancel=true`;
   const requestBaseUrl = API_URL || '';
@@ -142,21 +143,9 @@ export async function purchaseVideoDownload(venue, userRegion) {
 
     modal.querySelector('#paypal-close').addEventListener('click', closeModal);
 
-    const openPaypal = (forceSameTab = false) => {
+    const openPaypal = () => {
       if (!approveUrl) return;
-      if (forceSameTab) {
-        window.location.href = approveUrl;
-        return;
-      }
-
-      const popup = window.open(approveUrl, '_blank', 'noopener,noreferrer');
-      if (!popup) {
-        showError(
-          'Popup blocked. Please allow popups for this site, then click "Try again".',
-          true,
-          'open'
-        );
-      }
+      window.location.assign(approveUrl);
     };
 
     const pollCapture = async () => {
@@ -246,15 +235,23 @@ export async function purchaseVideoDownload(venue, userRegion) {
           throw new Error('PayPal checkout link unavailable. Please try again.');
         }
 
+        setPendingPayment({
+          orderId,
+          venue,
+          currency: orderData.currency || currency,
+          amount: orderData.amount || amount,
+          createdAt: new Date().toISOString(),
+        });
+
         setStatus(
-          'Complete payment in the new tab',
-          'If the PayPal tab did not open, click "Open PayPal".'
+          'Redirecting to PayPal...',
+          'If you are not redirected, tap "Continue to PayPal".'
         );
         if (openButton) {
+          openButton.textContent = 'Continue to PayPal';
           openButton.style.display = 'inline-flex';
         }
-        openPaypal(false);
-        startPolling();
+        openPaypal();
       } catch (err) {
         logger.error('PayPal order creation failed', err);
         if (spinner) spinner.style.display = 'none';
@@ -281,7 +278,7 @@ export async function purchaseVideoDownload(venue, userRegion) {
     if (openButton) {
       openButton.addEventListener('click', () => {
         clearError();
-        openPaypal(false);
+        openPaypal();
       });
     }
 

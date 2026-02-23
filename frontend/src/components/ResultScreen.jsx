@@ -3,6 +3,7 @@ import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
 import { isPaypalEnabled, purchaseVideoDownload as paypalPurchase } from "../utils/paypalManager";
 import { getPaymentPlatform, getUserRegion } from "../utils/paymentPlatform";
+import { getPaymentCompleted } from "../utils/paymentState";
 
 const logger = createDevLogger("ResultScreen");
 
@@ -32,6 +33,12 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
   const [isImage, setIsImage] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  
+  useEffect(() => {
+    if (venue) {
+      setHasPurchased(Boolean(getPaymentCompleted(venue)));
+    }
+  }, [venue]);
 
   // Track page view on mount
   useEffect(() => {

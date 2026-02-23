@@ -526,16 +526,21 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
       }),
     });
 
+    const paypalDebugId = orderRes.headers.get("paypal-debug-id");
+
     if (!orderRes.ok) {
       const errorText = await orderRes.text();
       logger.error(`[${requestId}] PayPal order failed`, {
         status: orderRes.status,
         error: errorText,
+        paypalDebugId,
       });
       return res.status(502).json({
         success: false,
         error: "Failed to create PayPal order",
-        ...(isDevMode() ? { details: errorText, status: orderRes.status } : {}),
+        ...(isDevMode()
+          ? { details: errorText, status: orderRes.status, paypalDebugId }
+          : {}),
       });
     }
 
@@ -549,6 +554,7 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
       orderId: orderData?.id,
       amount: paypalAmount,
       currency: resolved.currency,
+      paypalDebugId,
     });
 
     return res.json({
@@ -600,16 +606,21 @@ app.post("/api/payment/paypal/capture-order", async (req, res) => {
       }
     );
 
+    const paypalDebugId = captureRes.headers.get("paypal-debug-id");
+
     if (!captureRes.ok) {
       const errorText = await captureRes.text();
       logger.error(`[${requestId}] PayPal capture failed`, {
         status: captureRes.status,
         error: errorText,
+        paypalDebugId,
       });
       return res.status(502).json({
         success: false,
         error: "Failed to capture PayPal order",
-        ...(isDevMode() ? { details: errorText, status: captureRes.status } : {}),
+        ...(isDevMode()
+          ? { details: errorText, status: captureRes.status, paypalDebugId }
+          : {}),
       });
     }
 
@@ -623,6 +634,7 @@ app.post("/api/payment/paypal/capture-order", async (req, res) => {
       orderId,
       captureId,
       status,
+      paypalDebugId,
     });
 
     return res.json({

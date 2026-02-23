@@ -151,6 +151,71 @@ html, body {
 }
 
 /* ============================================================================
+   PAYPAL RETURN SCREEN
+   ============================================================================ */
+
+.paypal-return-screen {
+  display: flex;
+  justify-content: center;
+  padding: calc(120px + var(--safe-area-top)) var(--screen-pad-x) var(--screen-pad-bottom);
+  min-height: 70vh;
+}
+
+.paypal-return-card {
+  width: min(420px, 100%);
+  background: var(--color-white);
+  border-radius: 20px;
+  padding: var(--space-2xl);
+  box-shadow: 0 18px 40px rgba(74, 107, 138, 0.15);
+  text-align: center;
+}
+
+.paypal-return-card h2 {
+  font-size: 22px;
+  color: var(--color-brown);
+  margin-bottom: var(--space-sm);
+}
+
+.paypal-return-card p {
+  color: var(--color-gray);
+  margin-bottom: var(--space-md);
+}
+
+.paypal-return-card .loading-spinner {
+  margin: var(--space-lg) auto 0;
+}
+
+.paypal-return-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-lg);
+}
+
+.paypal-return-btn {
+  border: none;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: var(--color-white);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.paypal-return-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(95, 159, 212, 0.25);
+}
+
+.paypal-return-btn-secondary {
+  background: transparent;
+  color: var(--color-primary-dark);
+  border: 2px solid var(--color-primary-dark);
+}
+
+/* ============================================================================
    APP HEADER - Unified header with logo, title, and sound button
    ============================================================================ */
 
