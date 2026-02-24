@@ -5,6 +5,7 @@
 </head>
 <body>
     <h1>Payment Configuration Debug</h1>
+    <button id="open-checkout" disabled>Open Razorpay Checkout</button>
     <pre id="output">Loading...</pre>
 
     <script type="module">
@@ -13,10 +14,8 @@
         const config = {
             // Environment variables
             VITE_API_URL: import.meta.env.VITE_API_URL,
-            VITE_PAYPAL_ENABLED: import.meta.env.VITE_PAYPAL_ENABLED,
-            VITE_PAYPAL_CLIENT_ID: import.meta.env.VITE_PAYPAL_CLIENT_ID,
-            VITE_PAYPAL_ENV: import.meta.env.VITE_PAYPAL_ENV,
-            VITE_PAYPAL_INTENT: import.meta.env.VITE_PAYPAL_INTENT,
+            VITE_RAZORPAY_ENABLED: import.meta.env.VITE_RAZORPAY_ENABLED,
+            VITE_RAZORPAY_KEY_ID: import.meta.env.VITE_RAZORPAY_KEY_ID,
 
             // Platform detection
             isNativePlatform: window.Capacitor?.isNativePlatform?.() || false,
@@ -51,13 +50,75 @@
         }
 
         // Test payment platform logic
-        const isPaypalEnabled = !config.isNativePlatform && config.VITE_PAYPAL_ENABLED === 'true' && Boolean(config.VITE_PAYPAL_CLIENT_ID);
-
-        config.paymentPlatform = isPaypalEnabled ? 'paypal' : 'none';
+        const isRazorpayEnabled = !config.isNativePlatform && config.VITE_RAZORPAY_ENABLED === 'true' && Boolean(config.VITE_RAZORPAY_KEY_ID);
+        config.paymentPlatform = isRazorpayEnabled ? 'razorpay' : 'none';
 
         await loadPricing();
 
         output.textContent = JSON.stringify(config, null, 2);
+
+        const openButton = document.getElementById('open-checkout');
+        openButton.disabled = !isRazorpayEnabled;
+
+        const ensureRazorpayScript = () => new Promise((resolve, reject) => {
+            if (window.Razorpay) return resolve();
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+            document.body.appendChild(script);
+        });
+
+        openButton.addEventListener('click', async () => {
+            try {
+                openButton.disabled = true;
+                const res = await fetch('/api/payment/razorpay/create-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ venue: 'Debug Venue', currency: 'USD' })
+                });
+                const orderData = await res.json();
+                if (!res.ok || !orderData?.success || !orderData?.orderId) {
+                    throw new Error(orderData?.error || 'Failed to create Razorpay order');
+                }
+
+                await ensureRazorpayScript();
+
+                const amountMinor = Math.round(Number(orderData.amount || 0) * 100);
+                const options = {
+                    key: config.VITE_RAZORPAY_KEY_ID,
+                    order_id: orderData.orderId,
+                    amount: amountMinor,
+                    currency: orderData.currency || 'USD',
+                    name: 'Bunny Invites',
+                    description: 'Debug payment',
+                    handler: (response) => {
+                        output.textContent = JSON.stringify({
+                            ...config,
+                            checkoutResponse: response
+                        }, null, 2);
+                    },
+                    modal: {
+                        ondismiss: () => {
+                            output.textContent = JSON.stringify({
+                                ...config,
+                                checkoutResponse: { cancelled: true }
+                            }, null, 2);
+                        }
+                    }
+                };
+                const razorpay = new window.Razorpay(options);
+                razorpay.open();
+            } catch (error) {
+                output.textContent = JSON.stringify({
+                    ...config,
+                    checkoutError: String(error)
+                }, null, 2);
+            } finally {
+                openButton.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>

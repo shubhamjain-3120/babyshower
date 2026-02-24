@@ -8,10 +8,10 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://bunny-invites-api.fly.dev
-      - key: VITE_PAYPAL_ENABLED
+      - key: VITE_RAZORPAY_ENABLED
         value: "true"
-      - key: VITE_PAYPAL_CLIENT_ID
-        value: AfQ8bfF3il_fd4gIV2kZrFVT92L5y-Ks3ZNgbdyMay-9lCVuii6vcuUtFqG8m1JFBH4elviAHzKCaVAQ
+      - key: VITE_RAZORPAY_KEY_ID
+        value: rzp_live_SK5JqvTqHXe6YN
     headers:
       - path: /*
         name: Cross-Origin-Opener-Policy

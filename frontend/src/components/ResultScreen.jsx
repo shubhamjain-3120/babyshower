@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createDevLogger } from "../utils/devLogger";
 import { trackPageView, trackClick } from "../utils/analytics";
-import { isPaypalEnabled, purchaseVideoDownload as paypalPurchase } from "../utils/paypalManager";
+import { isRazorpayEnabled, purchaseVideoDownload as razorpayPurchase } from "../utils/razorpayManager";
 import { getPaymentPlatform, getUserRegion } from "../utils/paymentPlatform";
 import { getPaymentCompleted } from "../utils/paymentState";
 
@@ -85,8 +85,8 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
   const [userRegion, setUserRegion] = useState(null);
   const [pricingReady, setPricingReady] = useState(false);
   const paymentPlatform = getPaymentPlatform();
-  const isPaypal = paymentPlatform === 'paypal' && isPaypalEnabled();
-  const paymentRequired = isPaypal && !hasPurchased;
+  const isRazorpay = paymentPlatform === 'razorpay' && isRazorpayEnabled();
+  const paymentRequired = isRazorpay && !hasPurchased;
   const requiresPayment = paymentRequired && pricingReady;
 
   useEffect(() => {
@@ -167,8 +167,8 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
     logger.log("Initiating purchase flow", { paymentPlatform });
 
     let result;
-    if (isPaypal) {
-      result = await paypalPurchase(venue, userRegion);
+    if (isRazorpay) {
+      result = await razorpayPurchase(venue, userRegion);
     } else {
       result = { success: true };
     }
@@ -188,7 +188,7 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
     }
 
     setIsPurchasing(false);
-  }, [handleDownloadInternal, isPaypal, paymentPlatform, venue, userRegion]);
+  }, [handleDownloadInternal, isRazorpay, paymentPlatform, venue, userRegion]);
 
   // Main download handler with payment gate
   const handleDownload = useCallback(() => {

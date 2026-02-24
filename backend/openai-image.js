@@ -40,7 +40,7 @@ export async function generateBabyIllustrationWithOpenAI(photoBuffer, requestId)
     // Use new responses API with image generation tool
     // Force tool usage with tool_choice to ensure image generation
     const response = await openai.responses.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       input: [
         {
           role: "user",

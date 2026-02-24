@@ -10,6 +10,7 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { removeBackground } from "@imgly/background-removal-node";
 import { VIDEO_CONFIG } from "./videoConfig.js";
@@ -24,13 +25,6 @@ const logger = createDevLogger("Server");
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || "";
-const PAYPAL_SECRET = process.env.PAYPAL_SECRET || "";
-const PAYPAL_ENABLED = process.env.PAYPAL_ENABLED === "true";
-const PAYPAL_ENV = (process.env.PAYPAL_ENV || "sandbox").toLowerCase();
-const PAYPAL_BASE_URL =
-  process.env.PAYPAL_BASE_URL ||
-  (PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com");
 const DEV_MODE_VENUE = "Hotel Jain Ji Shubham";
 function parseEnvPrice(name, fallback) {
   const value = Number(process.env[name]);
@@ -52,41 +46,26 @@ function isDevModeVenue(venue) {
   return venue.trim().toLowerCase() === DEV_MODE_VENUE.toLowerCase();
 }
 
-function formatPaypalAmount(amount, currency) {
-  const major = Number(amount);
-  if (!Number.isFinite(major)) return null;
-  const zeroDecimalCurrencies = new Set(["JPY", "KRW", "VND"]);
-  const decimals = zeroDecimalCurrencies.has(currency) ? 0 : 2;
-  return major.toFixed(decimals);
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
+const RAZORPAY_ENABLED = process.env.RAZORPAY_ENABLED
+  ? process.env.RAZORPAY_ENABLED === "true"
+  : Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
+const RAZORPAY_BASE_URL = process.env.RAZORPAY_BASE_URL || "https://api.razorpay.com";
+
+function getRazorpayAuthHeader(requestId) {
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    logger.error(`[${requestId}] Razorpay credentials missing`);
+    throw new Error("Razorpay configuration missing");
+  }
+  const auth = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64");
+  return `Basic ${auth}`;
 }
 
-async function getPaypalAccessToken(requestId) {
-  if (!PAYPAL_CLIENT_ID || !PAYPAL_SECRET) {
-    logger.error(`[${requestId}] PayPal credentials missing`);
-    throw new Error("PayPal configuration missing");
-  }
-
-  const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString("base64");
-  const tokenRes = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
-
-  if (!tokenRes.ok) {
-    const errorText = await tokenRes.text();
-    logger.error(`[${requestId}] PayPal token request failed`, {
-      status: tokenRes.status,
-      error: errorText,
-    });
-    throw new Error("Failed to authenticate with PayPal");
-  }
-
-  const tokenData = await tokenRes.json();
-  return tokenData.access_token;
+function toMinorUnits(amount) {
+  const major = Number(amount);
+  if (!Number.isFinite(major)) return null;
+  return Math.round(major * 100);
 }
 
 function resolveOrderAmount({ venue, currency }) {
@@ -242,235 +221,27 @@ app.get("/api/pricing", (req, res) => {
   });
 });
 
-// Simple PayPal test page served from backend
-app.get("/test-paypal", (req, res) => {
-  const clientId = PAYPAL_CLIENT_ID || "";
-  const paypalEnabled = PAYPAL_ENABLED;
-  const paypalEnv = PAYPAL_ENV || "sandbox";
-
-  const html = `<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PayPal Backend Test</title>
-    <style>
-      body { font-family: system-ui, sans-serif; padding: 24px; }
-      label { display: block; margin: 12px 0 4px; }
-      input, select, button { font-size: 16px; padding: 8px; }
-      #output { margin-top: 16px; white-space: pre-wrap; }
-      .muted { color: #666; font-size: 12px; }
-      #paypal-buttons { margin-top: 16px; }
-    </style>
-  </head>
-  <body>
-    <h1>PayPal Backend Test</h1>
-    <div class="muted">PayPal enabled: ${paypalEnabled}</div>
-    <div class="muted">Env: ${paypalEnv}</div>
-    <div class="muted">Client ID present: ${Boolean(clientId)}</div>
-
-    <label>Currency (SDK currency)</label>
-    <select id="currency">
-      <option value="USD">USD</option>
-      <option value="INR">INR</option>
-    </select>
-    <button id="reload-sdk" style="margin-top: 8px;">Reload SDK</button>
-
-    <label>Amount (major units)</label>
-    <input id="amount" type="number" step="0.01" value="${DEFAULT_PRICE_USD}" />
-
-    <label>Venue</label>
-    <input id="venue" type="text" value="Test Venue" />
-
-    <div id="paypal-buttons"></div>
-    <div id="output">Loading...</div>
-
-    <script>
-      const clientId = ${JSON.stringify(clientId)};
-      const output = document.getElementById('output');
-      const currencySelect = document.getElementById('currency');
-      const reloadBtn = document.getElementById('reload-sdk');
-      const params = new URLSearchParams(window.location.search);
-      const sdkCurrency = (params.get('currency') || 'USD').toUpperCase();
-      currencySelect.value = sdkCurrency;
-
-      reloadBtn.addEventListener('click', () => {
-        params.set('currency', currencySelect.value);
-        window.location.search = params.toString();
-      });
-
-      function loadPaypalSdk() {
-        return new Promise((resolve, reject) => {
-          if (!clientId) {
-            reject(new Error('PAYPAL_CLIENT_ID missing on backend'));
-            return;
-          }
-          if (window.paypal) {
-            resolve();
-            return;
-          }
-          const script = document.createElement('script');
-          script.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(clientId) +
-            '&currency=' + encodeURIComponent(sdkCurrency) + '&intent=capture';
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
-          document.body.appendChild(script);
-        });
-      }
-
-      async function renderButtons() {
-        try {
-          output.textContent = 'Loading PayPal SDK...';
-          await loadPaypalSdk();
-        } catch (err) {
-          output.textContent = 'Error: ' + (err && err.message ? err.message : err);
-          return;
-        }
-
-        if (!window.paypal) {
-          output.textContent = 'Error: PayPal SDK not available';
-          return;
-        }
-
-        output.textContent = 'Ready. Click PayPal to test.';
-
-        window.paypal.Buttons({
-          createOrder: async () => {
-            const currency = currencySelect.value;
-            const amount = Number(document.getElementById('amount').value || 0);
-            const venue = document.getElementById('venue').value;
-
-            output.textContent = 'Creating PayPal order...';
-
-            const res = await fetch('/api/payment/paypal/create-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ currency, amount, venue })
-            });
-            const data = await res.json();
-            output.textContent = 'Order response: ' + JSON.stringify(data, null, 2);
-
-            if (!res.ok || !data.success) {
-              throw new Error(data.error || 'Failed to create PayPal order');
-            }
-            return data.orderId;
-          },
-          onApprove: async (data) => {
-            output.textContent = 'Capturing PayPal order...';
-            const res = await fetch('/api/payment/paypal/capture-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ orderId: data.orderID })
-            });
-            const captureData = await res.json();
-            output.textContent = 'Capture response: ' + JSON.stringify(captureData, null, 2);
-          },
-          onCancel: () => {
-            output.textContent = 'Payment cancelled.';
-          },
-          onError: (err) => {
-            output.textContent = 'PayPal error: ' + (err && err.message ? err.message : err);
-          }
-        }).render('#paypal-buttons');
-      }
-
-      renderButtons();
-    </script>
-  </body>
-</html>`;
-
-  res.set("Content-Type", "text/html; charset=utf-8");
-  res.send(html);
-});
-
-// PayPal hosted checkout return page
-app.get("/payment-complete", (req, res) => {
-  const cancelled = String(req.query?.cancel || "").toLowerCase() === "true";
-  const hasToken = Boolean(req.query?.token);
-  const isSuccess = !cancelled && hasToken;
-  const title = cancelled
-    ? "Payment cancelled"
-    : isSuccess
-      ? "Payment completed"
-      : "Payment status unknown";
-  const message = cancelled
-    ? "You can close this tab and return to your invite to try again."
-    : isSuccess
-      ? "You can close this tab and return to your invite. We’ll finish the download there."
-      : "Please return to your invite tab. We’ll finish once PayPal confirms the payment.";
-
-  const html = `<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-    <style>
-      body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f7f7fb;
-        color: #2a0f1b;
-        margin: 0;
-        padding: 40px 16px;
-      }
-      .card {
-        max-width: 520px;
-        margin: 0 auto;
-        background: #fff;
-        padding: 24px;
-        border-radius: 16px;
-        box-shadow: 0 16px 36px rgba(9, 16, 26, 0.12);
-        border: 1px solid rgba(16, 24, 40, 0.08);
-      }
-      h1 {
-        margin: 0 0 12px;
-        font-size: 22px;
-      }
-      p {
-        margin: 0;
-        color: #5f6368;
-        line-height: 1.5;
-      }
-      .note {
-        margin-top: 16px;
-        font-size: 12px;
-        color: #6b7280;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <h1>${title}</h1>
-      <p>${message}</p>
-      <div class="note">You can safely close this tab.</div>
-    </div>
-  </body>
-</html>`;
-
-  res.set("Content-Type", "text/html; charset=utf-8");
-  res.send(html);
-});
-
-// PayPal payment: create order
-app.post("/api/payment/paypal/create-order", async (req, res) => {
+// Razorpay payment: create order (USD only)
+app.post("/api/payment/razorpay/create-order", async (req, res) => {
   const requestId = Date.now().toString(36);
 
   try {
-    if (!PAYPAL_ENABLED) {
+    if (!RAZORPAY_ENABLED) {
       return res.status(503).json({
         success: false,
-        error: "PayPal is disabled",
+        error: "Razorpay is disabled",
       });
     }
 
-    const { venue, currency, amount, returnUrl, cancelUrl } = req.body || {};
+    const { venue, currency } = req.body || {};
     if (currency && String(currency).toUpperCase() !== "USD") {
       return res.status(400).json({
         success: false,
         error: "Only USD payments are supported",
       });
     }
-    const resolved = resolveOrderAmount({ venue, currency });
+
+    const resolved = resolveOrderAmount({ venue, currency: "USD" });
 
     if (!resolved?.majorAmount || resolved.majorAmount <= 0) {
       return res.status(400).json({
@@ -486,170 +257,173 @@ app.post("/api/payment/paypal/create-order", async (req, res) => {
       });
     }
 
-    const accessToken = await getPaypalAccessToken(requestId);
-    const paypalAmount = formatPaypalAmount(resolved.majorAmount, resolved.currency);
+    const amountMinor = toMinorUnits(resolved.majorAmount);
+    if (!amountMinor || amountMinor <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid amount",
+      });
+    }
 
-    logger.log(`[${requestId}] Creating PayPal order`, {
+    const authHeader = getRazorpayAuthHeader(requestId);
+
+    logger.log(`[${requestId}] Creating Razorpay order`, {
       currency: resolved.currency,
-      amount: paypalAmount,
+      amount: amountMinor,
       venue,
       devMode: isDevModeVenue(venue) || isDevMode(),
     });
 
-    const applicationContext = {
-      brand_name: "bunny invites",
-      user_action: "PAY_NOW",
-      landing_page: "BILLING",
-      shipping_preference: "NO_SHIPPING",
-      ...(returnUrl ? { return_url: returnUrl } : {}),
-      ...(cancelUrl ? { cancel_url: cancelUrl } : {}),
-    };
-
-    const orderRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders`, {
+    const orderRes = await fetch(`${RAZORPAY_BASE_URL}/v1/orders`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: authHeader,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        intent: "CAPTURE",
-        purchase_units: [
-          {
-            amount: {
-              currency_code: resolved.currency,
-              value: paypalAmount,
-            },
-            custom_id: venue ? venue.slice(0, 120) : undefined,
-          },
-        ],
-        application_context: applicationContext,
+        amount: amountMinor,
+        currency: resolved.currency,
+        receipt: `receipt_${requestId}`,
+        payment_capture: 1,
+        notes: venue ? { venue: venue.slice(0, 120) } : undefined,
       }),
     });
 
-    const paypalDebugId = orderRes.headers.get("paypal-debug-id");
-
     if (!orderRes.ok) {
       const errorText = await orderRes.text();
-      logger.error(`[${requestId}] PayPal order failed`, {
+      logger.error(`[${requestId}] Razorpay order failed`, {
         status: orderRes.status,
         error: errorText,
-        paypalDebugId,
       });
       return res.status(502).json({
         success: false,
-        error: "Failed to create PayPal order",
+        error: "Failed to create Razorpay order",
         ...(isDevMode()
-          ? { details: errorText, status: orderRes.status, paypalDebugId }
+          ? { details: errorText, status: orderRes.status }
           : {}),
       });
     }
 
     const orderData = await orderRes.json();
-    const approveUrl =
-      orderData?.links?.find((link) => link.rel === "approve")?.href ||
-      orderData?.links?.find((link) => link.rel === "payer-action")?.href ||
-      null;
 
-    logger.log(`[${requestId}] PayPal order created`, {
+    logger.log(`[${requestId}] Razorpay order created`, {
       orderId: orderData?.id,
-      amount: paypalAmount,
+      amount: amountMinor,
       currency: resolved.currency,
-      paypalDebugId,
     });
 
     return res.json({
       success: true,
       orderId: orderData.id,
-      approveUrl,
       amount: resolved.majorAmount,
       currency: resolved.currency,
     });
   } catch (error) {
-    logger.error(`[${requestId}] PayPal create order failed`, error);
+    logger.error(`[${requestId}] Razorpay create order failed`, error);
     return res.status(500).json({
       success: false,
-      error: "PayPal order creation failed",
+      error: "Razorpay order creation failed",
     });
   }
 });
 
-// PayPal payment: capture order
-app.post("/api/payment/paypal/capture-order", async (req, res) => {
+// Razorpay payment: verify signature and confirm capture
+app.post("/api/payment/razorpay/verify", async (req, res) => {
   const requestId = Date.now().toString(36);
 
   try {
-    if (!PAYPAL_ENABLED) {
+    if (!RAZORPAY_ENABLED) {
       return res.status(503).json({
         success: false,
-        error: "PayPal is disabled",
+        error: "Razorpay is disabled",
       });
     }
 
-    const { orderId } = req.body || {};
-    if (!orderId) {
+    const { orderId, paymentId, signature, venue } = req.body || {};
+    if (!orderId || !paymentId || !signature) {
       return res.status(400).json({
         success: false,
-        error: "Missing PayPal order id",
+        error: "Missing Razorpay verification payload",
       });
     }
 
-    const accessToken = await getPaypalAccessToken(requestId);
-
-    const captureRes = await fetch(
-      `${PAYPAL_BASE_URL}/v2/checkout/orders/${orderId}/capture`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const paypalDebugId = captureRes.headers.get("paypal-debug-id");
-
-    if (!captureRes.ok) {
-      const errorText = await captureRes.text();
-      logger.error(`[${requestId}] PayPal capture failed`, {
-        status: captureRes.status,
-        error: errorText,
-        paypalDebugId,
-      });
-      return res.status(502).json({
+    if (!RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({
         success: false,
-        error: "Failed to capture PayPal order",
-        ...(isDevMode()
-          ? { details: errorText, status: captureRes.status, paypalDebugId }
-          : {}),
+        error: "Razorpay configuration missing",
       });
     }
 
-    const captureData = await captureRes.json();
-    const captureId =
-      captureData?.purchase_units?.[0]?.payments?.captures?.[0]?.id || null;
-    const status = captureData?.status || "UNKNOWN";
-    const isCompleted = status === "COMPLETED";
+    const expectedSignature = crypto
+      .createHmac("sha256", RAZORPAY_KEY_SECRET)
+      .update(`${orderId}|${paymentId}`)
+      .digest("hex");
+    const providedSignature = String(signature);
+    let signatureValid = false;
+    if (providedSignature.length === expectedSignature.length) {
+      signatureValid = crypto.timingSafeEqual(
+        Buffer.from(providedSignature),
+        Buffer.from(expectedSignature)
+      );
+    }
 
-    logger.log(`[${requestId}] PayPal capture result`, {
+    if (!signatureValid) {
+      logger.warn(`[${requestId}] Razorpay signature mismatch`, { orderId, paymentId });
+      return res.json({ success: true, verified: false });
+    }
+
+    const authHeader = getRazorpayAuthHeader(requestId);
+    const paymentRes = await fetch(`${RAZORPAY_BASE_URL}/v1/payments/${paymentId}`, {
+      headers: {
+        Authorization: authHeader,
+      },
+    });
+
+    if (!paymentRes.ok) {
+      const errorText = await paymentRes.text();
+      logger.error(`[${requestId}] Razorpay payment lookup failed`, {
+        status: paymentRes.status,
+        error: errorText,
+      });
+      return res.json({ success: true, verified: false });
+    }
+
+    const paymentData = await paymentRes.json();
+    const status = String(paymentData?.status || "").toLowerCase();
+    const currency = String(paymentData?.currency || "").toUpperCase();
+    const amount = Number(paymentData?.amount);
+    const matchesOrder = paymentData?.order_id === orderId;
+
+    const resolved = resolveOrderAmount({ venue, currency: "USD" });
+    const expectedAmount = resolved?.majorAmount ? toMinorUnits(resolved.majorAmount) : null;
+
+    const verified =
+      status === "captured" &&
+      currency === "USD" &&
+      matchesOrder &&
+      (expectedAmount == null || expectedAmount === amount);
+
+    logger.log(`[${requestId}] Razorpay verification result`, {
       orderId,
-      captureId,
+      paymentId,
       status,
-      paypalDebugId,
+      currency,
+      amount,
+      verified,
     });
 
     return res.json({
       success: true,
-      verified: isCompleted,
-      captureId,
-      verificationToken: isCompleted
-        ? Buffer.from(`${captureId || orderId}:${Date.now()}`).toString("base64")
+      verified,
+      verificationToken: verified
+        ? Buffer.from(`${paymentId}:${Date.now()}`).toString("base64")
         : null,
     });
   } catch (error) {
-    logger.error(`[${requestId}] PayPal capture failed`, error);
+    logger.error(`[${requestId}] Razorpay verification failed`, error);
     return res.status(500).json({
       success: false,
-      error: "PayPal capture failed",
+      error: "Razorpay verification failed",
     });
   }
 });
@@ -1013,6 +787,15 @@ app.post(
         .replace(/'/g, "\\'")
         .replace(/:/g, "\\:");
 
+      const getVenueFontSize = (baseFontSize, rawVenue) => {
+        const maxVenueLength = 28;
+        const venueLength = (rawVenue || "").trim().length;
+        if (!venueLength || venueLength <= maxVenueLength) {
+          return baseFontSize;
+        }
+        return baseFontSize * (maxVenueLength / venueLength);
+      };
+
       // Build text for baby shower
       const parentsNameText = escapeText(parentsName);
       const dateParts = parseDateParts(date);
@@ -1129,7 +912,8 @@ app.post(
       const venueStyle = getStyle("venue");
       const venuePosition = getPosition("venue");
       const venueAlpha = buildFadeAlpha(getTiming("venue"));
-      filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(venueStyle.fontFamily)}':text='${venueText}':fontsize=${venueStyle.fontSize}:fontcolor=${toFFmpegColor(venueStyle.color)}:x=${alignX(venuePosition, getAlign("venue"))}:y=${alignY(venuePosition)}:alpha='${venueAlpha}'[vout]`;
+      const venueFontSize = getVenueFontSize(venueStyle.fontSize, venue);
+      filterComplex += `[${currentLayer}]drawtext=fontfile='${resolveFont(venueStyle.fontFamily)}':text='${venueText}':fontsize=${venueFontSize}:fontcolor=${toFFmpegColor(venueStyle.color)}:x=${alignX(venuePosition, getAlign("venue"))}:y=${alignY(venuePosition)}:alpha='${venueAlpha}'[vout]`;
 
       // Build FFmpeg command
       // Use explicit -t on looped image input to avoid infinite stream + malformed moov atom

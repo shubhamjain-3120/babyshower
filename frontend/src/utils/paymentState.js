@@ -2,8 +2,8 @@ import { createDevLogger } from "./devLogger";
 
 const logger = createDevLogger("PaymentState");
 
-const PENDING_KEY = "paypal_pending_payment";
-const COMPLETED_KEY = "paypal_completed_payments";
+const PENDING_KEY = "payment_pending";
+const COMPLETED_KEY = "payment_completed";
 
 function safeParse(value) {
   if (!value) return null;
@@ -53,11 +53,12 @@ export function clearPendingPayment() {
   localStorage.removeItem(PENDING_KEY);
 }
 
-export function setPaymentCompleted({ orderId, venue, completedAt }) {
+export function setPaymentCompleted({ orderId, paymentId, venue, completedAt }) {
   if (!orderId && !venue) return;
   const store = loadCompletedStore();
   const record = {
     orderId: orderId || "",
+    paymentId: paymentId || "",
     venue: venue || "",
     completedAt: completedAt || new Date().toISOString(),
   };

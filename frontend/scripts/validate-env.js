@@ -49,10 +49,10 @@ merged = { ...merged, ...process.env };
 const required = ["VITE_API_URL"];
 const missing = required.filter((key) => !merged[key] || String(merged[key]).trim() === "");
 
-const paypalEnabled = String(merged.VITE_PAYPAL_ENABLED || "").toLowerCase() === "true";
-if (paypalEnabled) {
-  if (!merged.VITE_PAYPAL_CLIENT_ID || String(merged.VITE_PAYPAL_CLIENT_ID).trim() === "") {
-    missing.push("VITE_PAYPAL_CLIENT_ID");
+const razorpayEnabled = String(merged.VITE_RAZORPAY_ENABLED || "").toLowerCase() === "true";
+if (razorpayEnabled) {
+  if (!merged.VITE_RAZORPAY_KEY_ID || String(merged.VITE_RAZORPAY_KEY_ID).trim() === "") {
+    missing.push("VITE_RAZORPAY_KEY_ID");
   }
 }
 

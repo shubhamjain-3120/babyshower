@@ -878,14 +878,14 @@ function drawVenueText(ctx, venue, opacity = 1) {
   const baseFontSize = layout.fontSize ?? (LAYOUT_V4.baseFontSize * layout.fontRatio);
   const displayText = `VENUE: ${venue}`.toUpperCase();
   
-  // Scale font size proportionally if text exceeds ideal length (20 chars)
-  const IDEAL_VENUE_LENGTH = 20;
-  const minFontScale = 0.5; // Don't go smaller than 50% of base size
+  // Scale font size proportionally if venue exceeds 28 chars
+  const MAX_VENUE_LENGTH = 28;
   let fontSize = baseFontSize;
   
-  if (displayText.length > IDEAL_VENUE_LENGTH) {
-    const scaleFactor = IDEAL_VENUE_LENGTH / displayText.length;
-    fontSize = baseFontSize * Math.max(scaleFactor, minFontScale);
+  const venueLength = (venue || "").trim().length;
+  if (venueLength > MAX_VENUE_LENGTH) {
+    const scaleFactor = MAX_VENUE_LENGTH / venueLength;
+    fontSize = baseFontSize * scaleFactor;
   }
 
   // Save context and apply opacity

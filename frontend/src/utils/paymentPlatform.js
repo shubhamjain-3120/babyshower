@@ -1,4 +1,4 @@
-import { isPaypalEnabled } from './paypalManager';
+import { isRazorpayEnabled } from './razorpayManager';
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
@@ -49,7 +49,7 @@ export async function getUserRegion(venue) {
 }
 
 export function getPaymentPlatform() {
-  return isPaypalEnabled() ? 'paypal' : 'none';
+  return isRazorpayEnabled() ? 'razorpay' : 'none';
 }
 
 export function isPaymentEnabled() {

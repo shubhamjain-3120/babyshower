@@ -10,11 +10,6 @@ import { incrementGenerationCount } from "./utils/rateLimit";
 import { getImageProcessingService, resetImageProcessingService, STATES } from "./utils/imageProcessingService";
 import { trackClick } from "./utils/analytics";
 import { saveInvite, loadInvite, clearInvite } from "./utils/inviteStorage";
-import {
-  clearPendingPayment,
-  getPendingPayment,
-  setPaymentCompleted,
-} from "./utils/paymentState";
 
 // Lazy load components that aren't immediately needed
 const ResultScreen = lazy(() => import("./components/ResultScreen"));
@@ -55,7 +50,6 @@ const SCREENS = {
   INPUT: "input",
   LOADING: "loading",
   RESULT: "result",
-  PAYPAL_RETURN: "paypal_return",
 };
 
 // Brief delay (ms) to show 100% before transitioning to result
@@ -158,13 +152,6 @@ export default function App() {
   const [finalInvite, setFinalInvite] = useState(null);
   const [error, setError] = useState(null);
   const [loadingCompleted, setLoadingCompleted] = useState(false);
-  const [paypalReturn, setPaypalReturn] = useState({
-    status: "idle",
-    message: "",
-    orderId: null,
-    venue: "",
-  });
-
   // New state for photo upload and processing
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [processingStatus, setProcessingStatus] = useState({ state: 'idle' });
@@ -239,8 +226,6 @@ export default function App() {
     hasRestoredInviteRef.current = true;
 
     const restoreInvite = async () => {
-      const isPaypalReturnPath =
-        (window.location.pathname.replace(/\/+$/, "") || "/") === "/payment-complete";
       const cached = await loadInvite();
       if (cached?.blob) {
         setFinalInvite(cached.blob);
@@ -248,136 +233,12 @@ export default function App() {
           parentsName: cached.metadata?.parentsName || "",
           venue: cached.metadata?.venue || "",
         });
-        if (!isPaypalReturnPath) {
-          setScreen(SCREENS.RESULT);
-        }
+        setScreen(SCREENS.RESULT);
       }
     };
 
     restoreInvite();
   }, []);
-
-  const restoreInviteForReturn = useCallback(async () => {
-    if (finalInvite) return true;
-    const cached = await loadInvite();
-    if (cached?.blob) {
-      setFinalInvite(cached.blob);
-      setFormData({
-        parentsName: cached.metadata?.parentsName || "",
-        venue: cached.metadata?.venue || "",
-      });
-      return true;
-    }
-    return false;
-  }, [finalInvite]);
-
-  const handleReturnHome = useCallback(async () => {
-    window.history.replaceState({}, "", "/");
-    const hasInvite = await restoreInviteForReturn();
-    if (hasInvite) {
-      setScreen(SCREENS.RESULT);
-    } else {
-      setScreen(SCREENS.SAMPLE_VIDEO);
-    }
-  }, [restoreInviteForReturn]);
-
-  const capturePaypalOrder = useCallback(async (orderId, venueHint) => {
-    setPaypalReturn({
-      status: "processing",
-      message: "",
-      orderId,
-      venue: venueHint || "",
-    });
-
-    try {
-      const response = await fetch(`${API_URL}/api/payment/paypal/capture-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data?.success) {
-        throw new Error(data?.error || "Failed to capture PayPal order");
-      }
-      if (!data?.verified) {
-        throw new Error("Payment not completed yet");
-      }
-
-      let resolvedVenue = venueHint || formData?.venue || "";
-      if (!resolvedVenue) {
-        const cached = await loadInvite();
-        if (cached?.metadata?.venue) {
-          resolvedVenue = cached.metadata.venue;
-          if (!finalInvite && cached?.blob) {
-            setFinalInvite(cached.blob);
-            setFormData({
-              parentsName: cached.metadata?.parentsName || "",
-              venue: cached.metadata?.venue || "",
-            });
-          }
-        }
-      }
-
-      setPaymentCompleted({
-        orderId,
-        venue: resolvedVenue,
-        completedAt: new Date().toISOString(),
-      });
-      clearPendingPayment();
-
-      setPaypalReturn({
-        status: "success",
-        message: "",
-        orderId,
-        venue: venueHint || "",
-      });
-      await handleReturnHome();
-    } catch (error) {
-      logger.error("PayPal return capture failed", error);
-      setPaypalReturn({
-        status: "error",
-        message: error?.message || "Failed to verify PayPal payment.",
-        orderId,
-        venue: venueHint || "",
-      });
-    }
-  }, [finalInvite, formData?.venue, handleReturnHome]);
-
-  useEffect(() => {
-    const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
-    if (normalizedPath !== "/payment-complete") return;
-
-    setScreen(SCREENS.PAYPAL_RETURN);
-    const params = new URLSearchParams(window.location.search);
-    const isCancel = params.get("cancel") === "true";
-    const orderId = params.get("token") || params.get("orderId");
-    const pending = getPendingPayment();
-
-    if (isCancel) {
-      clearPendingPayment();
-      setPaypalReturn({
-        status: "cancelled",
-        message: "Payment cancelled. You can try again any time.",
-        orderId: pending?.orderId || orderId || null,
-        venue: pending?.venue || "",
-      });
-      handleReturnHome();
-      return;
-    }
-
-    if (!orderId) {
-      setPaypalReturn({
-        status: "missing",
-        message: "Missing PayPal order information.",
-        orderId: null,
-        venue: pending?.venue || "",
-      });
-      return;
-    }
-
-    capturePaypalOrder(orderId, pending?.venue);
-  }, [capturePaypalOrder, handleReturnHome]);
 
   // Navigation handler: Sample video → Photo upload
   const handleSampleVideoComplete = useCallback(() => {
@@ -862,62 +723,6 @@ export default function App() {
       {/* Loading Screen */}
       {screen === SCREENS.LOADING && (
         <LoadingScreen completed={loadingCompleted} onCancel={handleCancel} />
-      )}
-
-      {/* PayPal Return Screen */}
-      {screen === SCREENS.PAYPAL_RETURN && (
-        <div className="paypal-return-screen">
-          <div className="paypal-return-card">
-            <h2>Finalizing your payment</h2>
-            {paypalReturn.status === "processing" && (
-              <>
-                <p>We are confirming your PayPal payment.</p>
-                <div className="loading-spinner" />
-              </>
-            )}
-            {paypalReturn.status === "success" && (
-              <p>Payment confirmed. Returning to your invite…</p>
-            )}
-            {paypalReturn.status === "cancelled" && (
-              <p>{paypalReturn.message}</p>
-            )}
-            {paypalReturn.status === "missing" && (
-              <p>{paypalReturn.message}</p>
-            )}
-            {paypalReturn.status === "error" && (
-              <>
-                <div className="status-message-box status-error">
-                  {paypalReturn.message}
-                </div>
-                <p>If this was a network issue, you can try again.</p>
-              </>
-            )}
-            <div className="paypal-return-actions">
-              {paypalReturn.status === "error" && (
-                <button
-                  className="paypal-return-btn"
-                  onClick={() => {
-                    if (paypalReturn.orderId) {
-                      capturePaypalOrder(paypalReturn.orderId, paypalReturn.venue);
-                    }
-                  }}
-                >
-                  Try again
-                </button>
-              )}
-              {(paypalReturn.status === "cancelled" ||
-                paypalReturn.status === "missing" ||
-                paypalReturn.status === "error") && (
-                <button
-                  className="paypal-return-btn paypal-return-btn-secondary"
-                  onClick={handleReturnHome}
-                >
-                  Back to invite
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Result Screen (lazy loaded) */}
