@@ -7,13 +7,6 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const enableCrossOriginIsolation = env.VITE_CROSS_ORIGIN_ISOLATION !== "false";
   
-  // This variable is now correctly used in the return object
-  const crossOriginHeaders = enableCrossOriginIsolation
-    ? {
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Embedder-Policy": "credentialless", // Use credentialless to allow Razorpay
-      }
-    : {};
 
   return {
     plugins: [
