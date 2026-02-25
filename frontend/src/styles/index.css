@@ -1239,6 +1239,33 @@ html, body {
   letter-spacing: 0.3px;
 }
 
+.contact-btn {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  background: rgba(74, 107, 138, 0.08);
+  color: var(--color-brown);
+  border: 1px solid rgba(74, 107, 138, 0.25);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  margin: 0 auto;
+  transition: all 0.2s ease;
+}
+
+.contact-btn:hover {
+  background: rgba(74, 107, 138, 0.14);
+}
+
+.contact-btn:active {
+  opacity: 0.7;
+}
+
 .download-btn::before,
 .share-btn::before {
   content: '';

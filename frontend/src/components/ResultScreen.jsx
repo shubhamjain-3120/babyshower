@@ -328,6 +328,14 @@ export default function ResultScreen({ inviteVideo, parentsName, venue, onReset 
         }}>
           start over
         </button>
+
+        <a
+          className="contact-btn"
+          href="mailto:svpj3110@gmail.com"
+          onClick={() => trackClick('contact_us')}
+        >
+          contact us
+        </a>
       </div>
     </div>
   );

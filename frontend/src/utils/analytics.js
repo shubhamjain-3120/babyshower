@@ -33,6 +33,11 @@ export function trackPageView(pageName, params = {}) {
       ...params
     });
   }
+
+  // Send to Meta Pixel (if configured)
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+    window.fbq('track', 'PageView');
+  }
 }
 
 /**
@@ -52,5 +57,10 @@ export function trackClick(eventName, params = {}) {
   // Send to Google Analytics (if configured)
   if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
     window.gtag('event', eventName, params);
+  }
+
+  // Send to Meta Pixel (if configured)
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+    window.fbq('trackCustom', eventName, params);
   }
 }
