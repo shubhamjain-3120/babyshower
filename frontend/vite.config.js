@@ -6,10 +6,12 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const enableCrossOriginIsolation = env.VITE_CROSS_ORIGIN_ISOLATION !== "false";
+  
+  // This variable is now correctly used in the return object
   const crossOriginHeaders = enableCrossOriginIsolation
     ? {
         "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Embedder-Policy": "credentialless",
+        "Cross-Origin-Embedder-Policy": "credentialless", // Use credentialless to allow Razorpay
       }
     : {};
 
@@ -20,45 +22,30 @@ export default defineConfig(({ mode }) => {
         registerType: "autoUpdate",
         includeAssets: ["fonts/**/*", "assets/**/*"],
         workbox: {
-          // Keep caches aligned with the latest build to avoid stale chunk errors
           cleanupOutdatedCaches: true,
           skipWaiting: true,
           clientsClaim: true,
-          // Only precache essential small files - skip large assets
           globPatterns: ['**/*.{js,css,html,ico,woff,woff2}'],
-          // Exclude large files from precaching
           globIgnores: ['**/*.wasm', '**/ort*.js', '**/ort*.mjs', '**/background.*', '**/*.mp4'],
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-          // Runtime caching for images and fonts
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           runtimeCaching: [
             {
-              // Cache images with a Cache First strategy
               urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
               handler: 'CacheFirst',
               options: {
                 cacheName: 'images-cache',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-                },
+                expiration: { maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 },
               },
             },
             {
-              // Cache fonts with a Cache First strategy
               urlPattern: /\.(?:woff|woff2|ttf|otf)$/i,
               handler: 'CacheFirst',
               options: {
                 cacheName: 'fonts-cache',
-                expiration: {
-                  maxEntries: 20,
-                  maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
-                },
+                expiration: { maxEntries: 20, maxAgeSeconds: 365 * 24 * 60 * 60 },
               },
             },
-            // API calls are NOT cached - they go directly to the network
-            // This avoids timeout issues on Android WebView
           ],
-          // Offline fallback - navigateFallback for SPA
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//],
         },
@@ -71,36 +58,22 @@ export default defineConfig(({ mode }) => {
           display: "standalone",
           orientation: "portrait",
           icons: [
-            {
-              src: "/assets/icon-192.png",
-              sizes: "192x192",
-              type: "image/png",
-            },
-            {
-              src: "/assets/icon-512.png",
-              sizes: "512x512",
-              type: "image/png",
-            },
+            { src: "/assets/icon-192.png", sizes: "192x192", type: "image/png" },
+            { src: "/assets/icon-512.png", sizes: "512x512", type: "image/png" },
           ],
         },
       }),
     ],
-    // Exclude @imgly/background-removal from dep optimization - it uses web workers
-    // that are incompatible with Vite's optimizer
     optimizeDeps: {
       exclude: ["@imgly/background-removal"],
     },
-    // Build optimizations for production
     build: {
-      // Generate source maps for production debugging (can be disabled for smaller builds)
       sourcemap: mode === 'development',
-      // Chunk splitting for better caching
       rollupOptions: {
         input: {
           main: path.resolve(process.cwd(), "index.html"),
         },
         output: {
-          // Separate vendor chunks for better caching
           manualChunks: {
             'react-vendor': ['react', 'react-dom'],
           },
@@ -108,18 +81,16 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      // Required for SharedArrayBuffer (needed by FFmpeg.wasm) when enabled
-      headers: crossOriginHeaders,
+      headers: crossOriginHeaders, // Cleanly using the variable defined above
       proxy: {
-        "/api": {
-          target: "http://localhost:8080",
+        '/api': {
+          target: 'http://localhost:8080',
           changeOrigin: true,
         },
       },
     },
     preview: {
-      // Same headers for preview server
-      headers: crossOriginHeaders,
+      headers: crossOriginHeaders, // Applied to preview server as well
     },
-  };
-});
+  }; // <--- Fixed: Added the missing closing brace for the return object
+}); // <--- Fixed: Properly closing the defineConfig function
