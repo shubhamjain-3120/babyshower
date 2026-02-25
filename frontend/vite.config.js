@@ -84,7 +84,7 @@ export default defineConfig(({ mode }) => {
       headers: crossOriginHeaders, // Cleanly using the variable defined above
       proxy: {
         '/api': {
-          target: 'http://localhost:8080',
+          target: env.VITE_API_URL || 'http://localhost:8080',
           changeOrigin: true,
         },
       },
