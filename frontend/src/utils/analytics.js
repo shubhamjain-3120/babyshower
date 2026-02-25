@@ -61,6 +61,31 @@ export function trackClick(eventName, params = {}) {
 
   // Send to Meta Pixel (if configured)
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
-    window.fbq('trackCustom', eventName, params);
+    const standardEvents = new Set([
+      'PageView',
+      'ViewContent',
+      'Search',
+      'AddToCart',
+      'AddToWishlist',
+      'InitiateCheckout',
+      'AddPaymentInfo',
+      'Purchase',
+      'Lead',
+      'CompleteRegistration',
+      'Contact',
+      'CustomizeProduct',
+      'Donate',
+      'FindLocation',
+      'Schedule',
+      'StartTrial',
+      'SubmitApplication',
+      'Subscribe'
+    ]);
+
+    if (standardEvents.has(eventName)) {
+      window.fbq('track', eventName, params);
+    } else {
+      window.fbq('trackCustom', eventName, params);
+    }
   }
 }

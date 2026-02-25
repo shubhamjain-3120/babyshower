@@ -14,6 +14,4 @@ NODE_ENV = "production"
 CORS_ORIGIN = "https://bunny-invites.onrender.com"
 
 [[vm]]
-cpus = 4
-memory = "1gb"
-memory_mb = 1024
+size = "shared-cpu-4x"
